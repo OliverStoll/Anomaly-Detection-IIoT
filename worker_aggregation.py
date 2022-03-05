@@ -17,8 +17,8 @@ class Aggregator:
 
     def receive(self):  # currently echos!
         connection, address = self.listener.accept()
+        print(f"\nNEW CONNECTION")
         with connection:
-            print(f"\nNEW CONNECTION")
             while True:
                 data = recv_msg(sock=connection)
                 print(f"Receive from {address}")
@@ -42,8 +42,9 @@ class Aggregator:
 
 
 if __name__ == '__main__':
+    print("Start of Aggregator")
     aggregator = Aggregator(ip_port=IP_PORT, model_path='results/aggregator', num_clients=2)
-    aggregator.run()
+    aggregator.receive()
 
 
 
