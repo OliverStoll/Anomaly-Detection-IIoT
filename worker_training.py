@@ -16,7 +16,6 @@ class Trainer:
         self.history = []
         self.epoch = 0
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        # self.socket.bind(('', CLIENT_PORT))
         self.socket.connect(server_ip_port)
         print(f"Connected to {server_ip_port}")
 

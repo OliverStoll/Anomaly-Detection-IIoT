@@ -8,7 +8,7 @@ def scheduler(epoch, lr):
 # VARIABLES
 SERVER_IP = os.environ['SERVER_IP']
 SERVER_PORT = int(os.environ['SERVER_PORT'])
-CLIENT_PORT = int(os.environ['CLIENT_PORT'])
+CLIENT_NUM = int(os.environ['CLIENT_NUM'])
 EPOCHS = int(os.environ['T_EPOCHS'])
 BATCH_SIZE = int(os.environ['T_BATCH_SIZE'])
 THRESHOLD = float(os.environ['T_THRESHOLD'])

@@ -1,15 +1,13 @@
-# Dockerfile (for Trainer)
-# FROM python:3.9-slim
 FROM tensorflow/tensorflow:2.8.0
 
 ENV PYTHONUNBUFFERED=1
-ENV CLIENT_PORT 65430
 ENV PATH_APP /app
 WORKDIR $PATH_APP
 
 # Defaults, Environment Variables can be overwritten while starting the container with '-e'
 ENV SERVER_IP 0.0.0.0
 ENV SERVER_PORT 55555
+ENV CLIENT_NUM 2
 
 ENV T_EPOCHS 30
 ENV T_BATCH_SIZE 16

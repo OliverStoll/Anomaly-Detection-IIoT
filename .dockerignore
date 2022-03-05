@@ -1,3 +1,4 @@
 # ignore all directories not needed for image run (minimize size)
 
 archive
+.idea

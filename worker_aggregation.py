@@ -10,10 +10,13 @@ class Aggregator:
         self.listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.listener.bind(ip_port)
         self.listener.listen()
-        self.epoch = 0
-        self.current_weights = 0
-        self.num_clients = num_clients
         print(f"Listening on {ip_port}...")
+        self.epoch = 0
+        self.clients_total = num_clients
+        self.clients = []
+        self.weights_received = 0
+
+        self.data = None
 
     def receive(self):  # currently echos!
         connection, address = self.listener.accept()
@@ -22,14 +25,20 @@ class Aggregator:
             while True:
                 data = recv_msg(sock=connection)
                 print(f"Receive from {address}")
-                self.current_weights += 1
-                # while self.current_weights != self.num_clients:
-                #    sleep(1)
+                self.weights_received += 1
+                # TODO signal all threads to now send back weights (maybe in one function?)
+                while self.weights_received != self.clients_total:
+                    print(f"Weights: {self.weights_received}/{self.clients_total} ...")
+                    sleep(5)
                 send_msg(sock=connection, msg=data)
-                self.current_weights = 0
+                sleep(7)
+                self.weights_received = 0
 
-    def add_client(self):
+    def send(self):
         pass
+
+    def accept_client(self):
+        connection, address = self.listener.accept()
 
     def aggregate(self):
         pass
@@ -43,8 +52,5 @@ class Aggregator:
 
 if __name__ == '__main__':
     print("Start of Aggregator")
-    aggregator = Aggregator(ip_port=IP_PORT, model_path='results/aggregator', num_clients=2)
-    aggregator.receive()
-
-
-
+    aggregator = Aggregator(ip_port=IP_PORT, model_path='results/aggregator', num_clients=CLIENT_NUM)
+    aggregator.run()
