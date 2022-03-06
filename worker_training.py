@@ -46,6 +46,6 @@ class Trainer:
 
 
 if __name__ == '__main__':
-    trainer = Trainer(server_ip_port=IP_PORT, data_path='data/bearing_dataset', model_path='results/trainer')
+    trainer = Trainer(server_ip_port=IP_PORT, data_path='data/bearing_dataset', model_path=MODEL_PATH)
     trainer.run(stop=EPOCHS)
 

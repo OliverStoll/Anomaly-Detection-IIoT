@@ -17,6 +17,7 @@ LEARNING_RATE = float(os.environ['T_LEARNING_RATE'])
 LR_DECAY = float(os.environ['T_LR_DECAY'])
 LAYERS_EXPONENT = int(os.environ['T_LAYERS_EXPONENT'])
 DATASET = int(os.environ['T_DATASET'])
+MODEL_PATH = os.environ['MODEL_PATH']
 LOSS = 'mse'  # 'mean_squared_logarithmic_error'
 IP_PORT = (SERVER_IP, SERVER_PORT)
 print(f"SERVER_IP_PORT: {IP_PORT}, EPOCHS: {EPOCHS}")
