@@ -8,58 +8,57 @@ from matplotlib import pyplot as plt
 from config import *
 
 
-def plot_all(res, loss, val_loss):
-    res_train = res.iloc[:-2999, :]
-    res_test = res.iloc[-3000:, :]
-    res_chunk = res.iloc[5000:5000+3*SPLIT, :]
+def plot_all(results, loss, val_loss):
+    """
+    Plot the predictions and the actual values of the dataset. Also plot all relevant metrics such as loss and val_loss.
+
+    :param results: dataframe with the predictions and metrics
+    :param loss: loss of the trained model that is being evaluated
+    :param val_loss: validation loss of the model that is being evaluated
+    :return:
+    """
+
+    # take a chunk of the size of three measurements and plot the predictions and the actual values
+    results_chunk = results.iloc[50 * SPLIT:53 * SPLIT, :]
 
     # plot different graphics
     plt.figure(figsize=(12, 10))
     font_d = {'size': 12}
 
+    # create a subplot for the predictions and the actual values
     plt.subplot(2, 2, 1)
-    plt.title("Vibration and Prediction", fontdict=font_d)
-    plt.plot(res['Data_1'])
-    plt.plot(res['Pred_1'])
-    plt.ylim(0, 3)
+    plt.plot(results_chunk['Pred_1'], label='pred')
+    plt.plot(results_chunk['Data_1'], label='actual')
+    plt.legend(loc='upper left')
+    plt.title('Predictions and Actual Values', fontdict=font_d)
 
+    # create a subplot that plots the anomaly score and a threshold
     plt.subplot(2, 2, 2)
     plt.title("Anomaly Score", fontdict=font_d)
-    plt.plot(res['Loss_mae'])
+    plt.plot(results['Loss_mae'])
     # plt.plot(res['Loss_avg'])
     plt.ylim(0, 1)
     plt.axhline(y=THRESHOLD, color='r', linestyle='-', label="Threshold")
 
+    # create a subplot for the predictions and the actual values of the chunk
     plt.subplot(2, 2, 3)
     plt.title("Vibration - Chunk", fontdict=font_d)
-    plt.plot(res_chunk['Data_1'].tolist(), label="Data")
-    plt.plot(res_chunk['Pred_1'].tolist(), label="Prediction")
+    plt.plot(results_chunk['Data_1'].tolist(), label="Data")
+    plt.plot(results_chunk['Pred_1'].tolist(), label="Prediction")
     plt.legend()
 
+    # create a subplot that includes all metrics in text form
     plt.subplot(2,2,4)
     plt.axis('off')
-    text = f"Loss:       {loss:.3}\nVal_Loss: {val_loss:.3}\n\nEpochs: {EPOCHS}\nBatch: {BATCH_SIZE}\nLearn_r: {LEARNING_RATE:.0e}\nLR_Red: {LR_DECAY}\n\nLSTM: {2**(LAYERS_EXPONENT+2)}\nSplit: {SPLIT}\nLoss_fn: {LOSS}"
+    text = f"Loss:       {loss[-1]:.3}\nVal_Loss: {val_loss[-1]:.3}\n\nEpochs: {EPOCHS}\nBatch: {BATCH_SIZE}\nLearn_r: {LEARNING_RATE:.0e}\nLR_Red: {LR_DECAY}\n\nLSTM: {2**(LAYERS_EXPONENT+2)}\nSplit: {SPLIT}"
     plt.text(0.2, 0.9, text, ha='left', va='top', fontdict={'fontsize': 20})
 
-    plt.savefig(f"results/{val_loss:.3e}_{SPLIT}_{2**LAYERS_EXPONENT}_{EPOCHS}_{BATCH_SIZE}_{LEARNING_RATE}.png")
+    plt.savefig(f"results/{val_loss[-1]:.3e}_{SPLIT}_{2**LAYERS_EXPONENT}_{EPOCHS}_{BATCH_SIZE}_{LEARNING_RATE:e.1}.png")
     if os.path.exists('results/latest.png'):
         os.remove('results/latest.png')
     plt.savefig('results/latest.png')
     plt.show()
     return
-
-
-def plot_sequence(sequence, title="Sequence", ylims=None, treshold=None, label=None):
-    plt.plot(sequence, label=label)
-    plt.title(f"{title}")
-    plt.xlim(0, len(sequence))
-    if ylims:
-        plt.ylim(ylims[0], ylims[1])
-    if treshold:
-        plt.axhline(y=treshold, color='r', linestyle='-', label="Threshold")
-    if label:
-        plt.legend()
-    plt.show()
 
 
 def split_data(split_size, path):

@@ -1,6 +1,6 @@
 import socket
 from threading import Thread
-from config import *
+from configs import *
 from socket_functions import *
 from keras.models import load_model
 from time import sleep

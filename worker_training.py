@@ -9,8 +9,8 @@ from socket_functions import *
 
 
 class Trainer:
-    def __init__(self, server_ip_port, data_path, model_path):
-        self.data, self.data_3d, self.data_train_3d = prepare_data(path=data_path)
+    def __init__(self, server_ip_port, data_path, data_cols, model_path):
+        self.data, self.data_3d, self.data_train_3d = prepare_data(data_path=data_path, columns=data_cols)
         self.model = init_model(data_train_3d=self.data_train_3d)
         self.model_path = model_path
         self.history = []
@@ -44,8 +44,8 @@ class Trainer:
         evaluate_model(model=self.model, data_3d=self.data_3d, history=self.history)
 
 
-
 if __name__ == '__main__':
-    trainer = Trainer(server_ip_port=IP_PORT, data_path='data/bearing_dataset', model_path=MODEL_PATH)
+    trainer = Trainer(server_ip_port=IP_PORT, data_path=f'data/bearing_dataset/bearings_1_10.csv',
+                      data_cols=[0, 1], model_path=MODEL_PATH)
     trainer.run(stop=EPOCHS)
 

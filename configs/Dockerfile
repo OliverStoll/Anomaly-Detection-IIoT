@@ -18,7 +18,7 @@ ENV T_LR_DECAY 0.98
 ENV T_LAYERS_EXPONENT 4
 ENV T_DATASET 2
 
-COPY . .
+COPY .. .
 
 RUN pip install --no-cache-dir -r _requirements.txt
 
