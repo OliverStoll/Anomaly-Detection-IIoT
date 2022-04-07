@@ -20,6 +20,6 @@ ENV T_DATASET 2
 
 COPY .. .
 
-RUN pip install --no-cache-dir -r _requirements.txt
+RUN pip install --no-cache-dir -r .requirements.txt
 
 CMD [ "python", "./worker_training.py" ]

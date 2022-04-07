@@ -1,11 +1,11 @@
-import os
 # import winsound
 
 import numpy as np
 import pandas as pd
+import os
 from matplotlib import pyplot as plt
 
-from config import *
+from helpers.config import c
 
 
 def plot_all(results, loss, val_loss):
@@ -19,7 +19,7 @@ def plot_all(results, loss, val_loss):
     """
 
     # take a chunk of the size of three measurements and plot the predictions and the actual values
-    results_chunk = results.iloc[50 * SPLIT:53 * SPLIT, :]
+    results_chunk = results.iloc[50 * c.SPLIT:53 * c.SPLIT, :]
 
     # plot different graphics
     plt.figure(figsize=(12, 10))
@@ -38,7 +38,7 @@ def plot_all(results, loss, val_loss):
     plt.plot(results['Loss_mae'])
     # plt.plot(res['Loss_avg'])
     plt.ylim(0, 1)
-    plt.axhline(y=THRESHOLD, color='r', linestyle='-', label="Threshold")
+    plt.axhline(y=c.THRESHOLD, color='r', linestyle='-', label="Threshold")
 
     # create a subplot for the predictions and the actual values of the chunk
     plt.subplot(2, 2, 3)
@@ -50,10 +50,10 @@ def plot_all(results, loss, val_loss):
     # create a subplot that includes all metrics in text form
     plt.subplot(2,2,4)
     plt.axis('off')
-    text = f"Loss:       {loss[-1]:.3}\nVal_Loss: {val_loss[-1]:.3}\n\nEpochs: {EPOCHS}\nBatch: {BATCH_SIZE}\nLearn_r: {LEARNING_RATE:.0e}\nLR_Red: {LR_DECAY}\n\nLSTM: {2**(LAYERS_EXPONENT+2)}\nSplit: {SPLIT}"
+    text = f"Loss:       {loss[-1]:.3}\nVal_Loss: {val_loss[-1]:.3}\n\nEpochs: {c.EPOCHS}\nBatch: {c.BATCH_SIZE}\nLearn_r: {c.LEARNING_RATE:.0e}\nLR_Red: {c.LR_DECAY}\n\nLSTM: {2**(c.LAYERS_EXPONENT+2)}\nSplit: {c.SPLIT}"
     plt.text(0.2, 0.9, text, ha='left', va='top', fontdict={'fontsize': 20})
 
-    plt.savefig(f"results/{val_loss[-1]:.3e}_{SPLIT}_{2**LAYERS_EXPONENT}_{EPOCHS}_{BATCH_SIZE}_{LEARNING_RATE:e.1}.png")
+    plt.savefig(f"results/{val_loss[-1]:.3e}_{c.SPLIT}_{2**c.LAYERS_EXPONENT}_{c.EPOCHS}_{c.BATCH_SIZE}_{c.LEARNING_RATE:e.1}.png")
     if os.path.exists('results/latest.png'):
         os.remove('results/latest.png')
     plt.savefig('results/latest.png')
@@ -76,4 +76,4 @@ def split_data(split_size, path):
 
 
 if __name__ == '__main__':
-    split_data(split_size=1000, path='data/bearing_dataset/bearings_3')
+    split_data(split_size=100, path='data/bearing_dataset/bearings_3')

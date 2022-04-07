@@ -1,10 +1,9 @@
 import socket
-from threading import Thread
-from configs import *
-from socket_functions import *
 from keras.models import load_model
-from time import sleep
 import numpy as np
+
+from helpers.socket_functions import send_msg, recv_msg
+from helpers.config import c
 
 
 class Aggregator:
@@ -17,7 +16,6 @@ class Aggregator:
         self.clients_total = num_clients
         self.clients = []
         self.aggregated_data = None
-
 
     def accept_client(self):
         connection, address = self.listener.accept()
@@ -81,5 +79,5 @@ class Client:
 
 if __name__ == '__main__':
     print("Start of Aggregator")
-    aggregator = Aggregator(ip_port=IP_PORT, model_path='results/aggregator', num_clients=CLIENT_NUM)
+    aggregator = Aggregator(ip_port=c.IP_PORT, model_path='results/aggregator', num_clients=c.CLIENT_NUM)
     aggregator.run()

@@ -1,11 +1,11 @@
 import socket
 import os
-import sys
-import struct
 from keras.models import load_model
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+
 from training import *
-from socket_functions import *
+from helpers.socket_functions import send_msg, recv_msg
+from helpers.config import c
 
 
 class Trainer:
@@ -45,7 +45,7 @@ class Trainer:
 
 
 if __name__ == '__main__':
-    trainer = Trainer(server_ip_port=IP_PORT, data_path=f'data/bearing_dataset/bearings_1_10.csv',
-                      data_cols=[0, 1], model_path=MODEL_PATH)
-    trainer.run(stop=EPOCHS)
+    trainer = Trainer(server_ip_port=c.IP_PORT, data_path=f'data/bearing_dataset/bearings_1_10.csv',
+                      data_cols=[0, 1], model_path=c.MODEL_PATH)
+    trainer.run(stop=c.EPOCHS)
 

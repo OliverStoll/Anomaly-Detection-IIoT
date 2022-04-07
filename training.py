@@ -1,17 +1,16 @@
 import tensorflow as tf
-import numpy as np
-import pandas as pd
 import yaml
-from keras.layers import Input, Dropout, Dense, LSTM, TimeDistributed, RepeatVector
+
+from keras.layers import Input, Dense, LSTM, TimeDistributed, RepeatVector
 from keras.models import Model
 from tensorflow.keras import optimizers
 from keras.regularizers import l2
 from sklearn.preprocessing import MinMaxScaler
+from types import SimpleNamespace
 
-from evaluation import *
-
-# read configs from yaml file
-config = yaml.safe_load(open("configs/config.yaml"))
+from helpers.evaluation import *
+from helpers.callbacks import scheduler
+from helpers.config import c
 
 
 def autoencoder_model(X):
@@ -25,21 +24,21 @@ def autoencoder_model(X):
     """
     # print all relevant information
     print(f'Input shape: {X.shape}')
-    print(f'Layers size: {2 ** (LAYERS_EXPONENT+2)}, {2 ** LAYERS_EXPONENT}')
+    print(f'Layers size: {2 ** (c.LAYERS_EXPONENT + 2)}, {2 ** c.LAYERS_EXPONENT}')
 
     # create the input layer
     inputs = Input(shape=(X.shape[1], X.shape[2]))
     x = inputs
 
     # create the LSTM layers
-    x = LSTM(2 ** (LAYERS_EXPONENT + 2), activation='relu', return_sequences=True,
+    x = LSTM(2 ** (c.LAYERS_EXPONENT + 2), activation='relu', return_sequences=True,
              kernel_regularizer=l2(0.0000001), activity_regularizer=l2(0.0000001))(x)
-    x = LSTM(2 ** LAYERS_EXPONENT, activation='relu', return_sequences=False,
+    x = LSTM(2 ** c.LAYERS_EXPONENT, activation='relu', return_sequences=False,
              kernel_regularizer=l2(0.0000001), activity_regularizer=l2(0.0000001))(x)
     x = RepeatVector(X.shape[1])(x)
-    x = LSTM(2 ** LAYERS_EXPONENT, activation='relu', return_sequences=True, kernel_regularizer=l2(0.0000001),
+    x = LSTM(2 ** c.LAYERS_EXPONENT, activation='relu', return_sequences=True, kernel_regularizer=l2(0.0000001),
              activity_regularizer=l2(0.0000001))(x)
-    x = LSTM(2 ** (LAYERS_EXPONENT + 2), activation='relu', return_sequences=True, kernel_regularizer=l2(0.0000001),
+    x = LSTM(2 ** (c.LAYERS_EXPONENT + 2), activation='relu', return_sequences=True, kernel_regularizer=l2(0.0000001),
              activity_regularizer=l2(0.0000001))(x)
 
     # create the output layer
@@ -59,7 +58,7 @@ def prepare_data(columns, data_path=f'data/bearing_dataset/bearings_2_10.csv'):
     """
     # TODO: include metadata features
     df = pd.read_csv(data_path, names=columns)
-    split_len = int(len(df) * 0.8) + (SPLIT - int(len(df) * 0.8) % SPLIT)
+    split_len = int(len(df) * 0.8) + (c.SPLIT - int(len(df) * 0.8) % c.SPLIT)
 
     # extract the columns with the features by index using the columns list
     df = df.iloc[:, columns]
@@ -74,8 +73,8 @@ def prepare_data(columns, data_path=f'data/bearing_dataset/bearings_2_10.csv'):
     train_data = scaler.transform(train_data)
 
     # reshape data to 3d arrays with the second value equal to the number of timesteps (SPLIT)
-    train_data_3d = train_data.reshape((-1, SPLIT, train_data.shape[1]))
-    data_3d = data.reshape((-1, SPLIT, data.shape[1]))
+    train_data_3d = train_data.reshape((-1, c.SPLIT, train_data.shape[1]))
+    data_3d = data.reshape((-1, c.SPLIT, data.shape[1]))
 
     return data, data_3d, train_data_3d
 
@@ -89,8 +88,8 @@ def init_model(data_train_3d):
     :return: the initialized model
     """
     model = autoencoder_model(data_train_3d)
-    opt = optimizers.Adam(learning_rate=LEARNING_RATE, clipnorm=1.0, clipvalue=0.5)
-    model.compile(optimizer=opt, loss=LOSS_FN)
+    opt = optimizers.Adam(learning_rate=c.LEARNING_RATE, clipnorm=1.0, clipvalue=0.5)
+    model.compile(optimizer=opt, loss=c.LOSS_FN)
     return model
 
 
@@ -105,7 +104,7 @@ def train_model(model, data_train_3d, epochs=1):
     :return: the trained model
     """
     callback = tf.keras.callbacks.LearningRateScheduler(scheduler)
-    _history = model.fit(data_train_3d, data_train_3d, epochs=epochs, batch_size=BATCH_SIZE,
+    _history = model.fit(data_train_3d, data_train_3d, epochs=epochs, batch_size=c.BATCH_SIZE,
                          callbacks=[callback], validation_split=0.1).history
     return model, _history
 
@@ -137,7 +136,7 @@ def evaluate_model(model, data_3d, history, columns):
     res['Data_1'] = data_seq
     res['Pred_1'] = pred_seq
     res['Loss_mae'] = np.abs(pred_seq - data_seq)
-    res['Threshold'] = THRESHOLD
+    res['Threshold'] = c.THRESHOLD
     res['Anomaly'] = res['Loss_mae'] > res['Threshold']
     plot_all(results=res, loss=history['loss'], val_loss=history['val_loss'])
     # model.save(f"results/models/{history['val_loss'][-1]:.3e}_{SPLIT}_{2 ** LAYERS_EXPONENT}_{EPOCHS}_{BATCH_SIZE}_{LEARNING_RATE:.0e}.h5")
@@ -145,7 +144,7 @@ def evaluate_model(model, data_3d, history, columns):
 
 
 if __name__ == '__main__':
-    data, data_3d, train_data_3d = prepare_data(columns=DATASET_COLUMNS, data_path=DATASET_PATH)
+    data, data_3d, train_data_3d = prepare_data(columns=c.DATASET_COLUMNS, data_path=c.DATASET_PATH)
     model = init_model(data_train_3d=train_data_3d)
     model, history = train_model(model=model, data_train_3d=train_data_3d, epochs=100)
-    evaluate_model(model=model, data_3d=data_3d, history=history, columns=DATASET_COLUMNS)
+    evaluate_model(model=model, data_3d=data_3d, history=history, columns=c.DATASET_COLUMNS)
