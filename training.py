@@ -1,14 +1,17 @@
+import numpy as np
 import tensorflow as tf
 import yaml
+import os
+import pandas as pd
 
 from keras.layers import Input, Dense, LSTM, TimeDistributed, RepeatVector
 from keras.models import Model
 from tensorflow.keras import optimizers
 from keras.regularizers import l2
 from sklearn.preprocessing import MinMaxScaler
-from types import SimpleNamespace
+from sklearn.metrics import mean_squared_error
 
-from helpers.evaluation import *
+from helpers.evaluation import plot_all
 from helpers.callbacks import scheduler
 from helpers.config import c
 
@@ -23,23 +26,26 @@ def autoencoder_model(X):
     :return: the initialized model
     """
     # print all relevant information
-    print(f'Input shape: {X.shape}')
-    print(f'Layers size: {2 ** (c.LAYERS_EXPONENT + 2)}, {2 ** c.LAYERS_EXPONENT}')
+    print(f'Input shape: {X.shape} - Layers size: {c.LAYER_SIZES}')
 
     # create the input layer
     inputs = Input(shape=(X.shape[1], X.shape[2]))
     x = inputs
 
-    # create the LSTM layers
-    x = LSTM(2 ** (c.LAYERS_EXPONENT + 2), activation='relu', return_sequences=True,
-             kernel_regularizer=l2(0.0000001), activity_regularizer=l2(0.0000001))(x)
-    x = LSTM(2 ** c.LAYERS_EXPONENT, activation='relu', return_sequences=False,
-             kernel_regularizer=l2(0.0000001), activity_regularizer=l2(0.0000001))(x)
+    # create the encoder LSTM layers
+    for i in range(len(c.LAYER_SIZES)-1):
+        x = LSTM(c.LAYER_SIZES[i], activation='relu', return_sequences=True,
+                 kernel_regularizer=l2(1e-7), activity_regularizer=l2(1e-7))(x)
+    x = LSTM(c.LAYER_SIZES[-1], activation='relu', return_sequences=False,
+             kernel_regularizer=l2(1e-7), activity_regularizer=l2(1e-7))(x)
+
+    # pass the encoded data through a dense layer to the decoder
     x = RepeatVector(X.shape[1])(x)
-    x = LSTM(2 ** c.LAYERS_EXPONENT, activation='relu', return_sequences=True, kernel_regularizer=l2(0.0000001),
-             activity_regularizer=l2(0.0000001))(x)
-    x = LSTM(2 ** (c.LAYERS_EXPONENT + 2), activation='relu', return_sequences=True, kernel_regularizer=l2(0.0000001),
-             activity_regularizer=l2(0.0000001))(x)
+
+    # create the decoder LSTM layers
+    for i in reversed(range(len(c.LAYER_SIZES))):
+        x = LSTM(c.LAYER_SIZES[i], activation='relu', return_sequences=True,
+                 kernel_regularizer=l2(1e-7), activity_regularizer=l2(1e-7))(x)
 
     # create the output layer
     output = TimeDistributed(Dense(X.shape[2]))(x)
@@ -109,7 +115,7 @@ def train_model(model, data_train_3d, epochs=1):
     return model, _history
 
 
-def evaluate_model(model, data_3d, history, columns):
+def evaluate_model(model, data_3d, history):
     """
     Evaluate the model on the test data. This includes plotting all relevant metrics.
 
@@ -119,26 +125,20 @@ def evaluate_model(model, data_3d, history, columns):
     :return:
     """
     # TODO: generalize for multiple features
-    # for each feature, predict the values using the model and plot the results
-    for column in columns:
-        # get the feature data
-        feature_data = data_3d[:, :, columns.index(column)]
-        # get the predicted data
-        predicted_data = model.predict(feature_data)
-        # get the real data
-        real_data = feature_data[:, -1, :]
-        # plot the results
-        plot_all(real_data, predicted_data, column)
+    # get the predictions from the model
+    pred_2d = model.predict(data_3d).reshape((-1, data_3d.shape[2]))
+    # reformat the data_3d to a 2D array for evaluation
+    data_2d = data_3d.reshape((-1, data_3d.shape[2]))
 
-    pred_seq = model.predict(data_3d).reshape(-1)
-    data_seq = data_3d.reshape(-1)
-    res = pd.DataFrame()
-    res['Data_1'] = data_seq
-    res['Pred_1'] = pred_seq
-    res['Loss_mae'] = np.abs(pred_seq - data_seq)
-    res['Threshold'] = c.THRESHOLD
-    res['Anomaly'] = res['Loss_mae'] > res['Threshold']
-    plot_all(results=res, loss=history['loss'], val_loss=history['val_loss'])
+    results_df = pd.DataFrame()
+    for num_feature in range(data_2d.shape[1]):
+        results_df[f'Data_{num_feature}'] = data_2d[:, num_feature]
+        results_df[f'Pred_{num_feature}'] = pred_2d[:, num_feature]
+    # calculate the mean squared error over all features
+    results_df['Loss_MSE'] = ((data_2d - pred_2d) ** 2).mean(axis=1)
+    results_df['mse'] = mean_squared_error(data_2d, pred_2d)
+    results_df['Anomaly'] = results_df['Loss_MSE'] > c.THRESHOLD
+    plot_all(results=results_df, loss=history['loss'], val_loss=history['val_loss'], num_features=data_2d.shape[1])
     # model.save(f"results/models/{history['val_loss'][-1]:.3e}_{SPLIT}_{2 ** LAYERS_EXPONENT}_{EPOCHS}_{BATCH_SIZE}_{LEARNING_RATE:.0e}.h5")
     # winsound.Beep(440, 800)
 
@@ -146,5 +146,5 @@ def evaluate_model(model, data_3d, history, columns):
 if __name__ == '__main__':
     data, data_3d, train_data_3d = prepare_data(columns=c.DATASET_COLUMNS, data_path=c.DATASET_PATH)
     model = init_model(data_train_3d=train_data_3d)
-    model, history = train_model(model=model, data_train_3d=train_data_3d, epochs=100)
-    evaluate_model(model=model, data_3d=data_3d, history=history, columns=c.DATASET_COLUMNS)
+    model, history = train_model(model=model, data_train_3d=train_data_3d, epochs=c.EPOCHS)
+    evaluate_model(model=model, data_3d=data_3d, history=history)

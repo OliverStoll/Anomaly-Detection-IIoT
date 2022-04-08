@@ -9,6 +9,14 @@ from helpers.config import c
 
 
 class Trainer:
+    """
+    This class is responsible for training the model. It encapsulates the training process.
+    Additionally, it handles the communication with the aggregation worker and runs the full
+    training cycle.
+
+    Attributes:
+        model (keras.model): The model to be trained.
+    """
     def __init__(self, server_ip_port, data_path, data_cols, model_path):
         self.data, self.data_3d, self.data_train_3d = prepare_data(data_path=data_path, columns=data_cols)
         self.model = init_model(data_train_3d=self.data_train_3d)
@@ -45,7 +53,7 @@ class Trainer:
 
 
 if __name__ == '__main__':
-    trainer = Trainer(server_ip_port=c.IP_PORT, data_path=f'data/bearing_dataset/bearings_1_10.csv',
+    trainer = Trainer(server_ip_port=c.SERVER_IP_PORT, data_path=f'data/bearing_dataset/bearings_1_10.csv',
                       data_cols=[0, 1], model_path=c.MODEL_PATH)
     trainer.run(stop=c.EPOCHS)
 

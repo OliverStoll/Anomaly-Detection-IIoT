@@ -33,7 +33,6 @@ class Aggregator:
             send_msg(sock=client.connection, msg=self.aggregated_data)
 
     def aggregate(self):
-        # TODO: FedAvg implementieren
         # TOD: effizienter implementieren (nur weights, keine model)
         print(f"Aggregating Epoch {self.epoch}\n")
         weights = []
@@ -79,5 +78,5 @@ class Client:
 
 if __name__ == '__main__':
     print("Start of Aggregator")
-    aggregator = Aggregator(ip_port=c.IP_PORT, model_path='results/aggregator', num_clients=c.CLIENT_NUM)
+    aggregator = Aggregator(ip_port=c.BIND_IP_PORT, model_path='results/aggregator', num_clients=c.CLIENT_NUM)
     aggregator.run()

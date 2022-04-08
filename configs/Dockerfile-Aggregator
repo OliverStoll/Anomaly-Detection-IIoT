@@ -1,0 +1,13 @@
+FROM tensorflow/tensorflow:2.8.0
+
+ENV PYTHONUNBUFFERED=1
+ENV PATH_APP /app
+WORKDIR $PATH_APP
+
+# TODO: make env variables passable?
+
+COPY . .
+
+RUN pip install --no-cache-dir -r _requirements.txt
+
+CMD [ "python", "./worker_aggregation.py" ]

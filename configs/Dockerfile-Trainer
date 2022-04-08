@@ -5,18 +5,9 @@ ENV PATH_APP /app
 WORKDIR $PATH_APP
 
 # Defaults, Environment Variables can be overwritten while starting the container with '-e'
+# TODO: import environment variables into config or split SERVER_IP into two different variables
 ENV SERVER_IP 0.0.0.0
-ENV SERVER_PORT 55555
-ENV CLIENT_NUM 2
 
-ENV T_EPOCHS 30
-ENV T_BATCH_SIZE 16
-ENV T_THRESHOLD 0.1
-ENV T_SPLIT 10
-ENV T_LEARNING_RATE 0.0005
-ENV T_LR_DECAY 0.98
-ENV T_LAYERS_EXPONENT 4
-ENV T_DATASET 2
 
 COPY .. .
 
