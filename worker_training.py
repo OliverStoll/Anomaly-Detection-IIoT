@@ -4,8 +4,8 @@ from keras.models import load_model
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 from training import *
-from helpers.socket_functions import send_msg, recv_msg
-from helpers.config import c
+from scripts.socket_functions import send_msg, recv_msg
+from scripts.config import c
 
 
 class Trainer:
@@ -19,7 +19,7 @@ class Trainer:
     """
     def __init__(self, server_ip_port, data_path, data_cols, model_path):
         self.data, self.data_3d, self.data_train_3d = prepare_data(data_path=data_path, columns=data_cols)
-        self.model = init_model(data_train_3d=self.data_train_3d)
+        self.model = init_model(train_data_3d=self.data_train_3d)
         self.model_path = model_path
         self.history = []
         self.epoch = 0

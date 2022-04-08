@@ -5,7 +5,7 @@ import pandas as pd
 import os
 from matplotlib import pyplot as plt
 
-from helpers.config import c
+from scripts.config import c
 
 
 def plot_all(results, loss, val_loss, num_features):
@@ -52,18 +52,18 @@ def plot_all(results, loss, val_loss, num_features):
     # create a subplot that includes all metrics in text form
     plt.subplot(2, 2, 4)
     plt.axis('off')
-    text = f"Loss:       {loss[-1]:e.2}\nVal_Loss: {val_loss[-1]:e.2}\n\nEpochs: {c.EPOCHS}\nBatch: {c.BATCH_SIZE}\nLearn_r: {c.LEARNING_RATE:.0e}\nLR_Red: {c.LR_DECAY}\n\nLSTM: {c.LAYER_SIZES}\nSplit: {c.SPLIT}"
+    text = f"Epochs: {c.EPOCHS}\nLoss:     {loss[-1]:.1e}\nVal_Loss: {val_loss[-1]:.1e}\n\n" \
+           f"Batch: {c.BATCH_SIZE}\nLearn_r: {c.LEARNING_RATE:.0e}\nLR_Red: {c.LR_DECAY}" \
+           f"\n\nLSTM: {c.LAYER_SIZES}\nSplit: {c.SPLIT}"
     plt.text(0.2, 0.9, text, ha='left', va='top', fontdict={'fontsize': 20})
 
-    plt.savefig(f"results/{val_loss[-1]:.3e}_{c.SPLIT}_{c.LAYER_SIZES}_{c.EPOCHS}_{c.BATCH_SIZE}_{c.LEARNING_RATE:.1e}.png")
-    if os.path.exists('results/latest.png'):
-        os.remove('results/latest.png')
-    plt.savefig('results/latest.png')
+    plt.savefig(f"archive/results/{val_loss[-1]:.3e}_{c.SPLIT}_{c.LAYER_SIZES}_{c.EPOCHS}_"
+                f"{c.BATCH_SIZE}_{c.LEARNING_RATE:.1e}.png")
     plt.show()
     return
 
 
-def split_data(split_size, path):
+def split_data_nasa(split_size, path):
     chunk_list = []
     for file in os.scandir(path):
         df = pd.read_csv(f"{path}/{file.name}", sep='\t', header=None)
@@ -78,4 +78,4 @@ def split_data(split_size, path):
 
 
 if __name__ == '__main__':
-    split_data(split_size=100, path='data/bearing_dataset/bearings_3')
+    split_data_nasa(split_size=100, path='data/bearing_dataset/bearings_3')

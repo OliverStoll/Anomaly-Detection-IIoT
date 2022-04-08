@@ -2,7 +2,7 @@ SERVER_IP_PORT: ('localhost', 55555)
 BIND_IP_PORT: ('0.0.0.0', 55555)
 CLIENT_NUM: 2
 
-EPOCHS: 20
+EPOCHS: 100
 BATCH_SIZE: 16
 THRESHOLD: 0.1
 SPLIT: 10
@@ -11,6 +11,8 @@ LR_DECAY: 0.98
 LAYER_SIZES: [256, 64, 16]
 LOSS_FN: mse
 
-DATASET_PATH: data/bearing_dataset/bearings_1_10.csv
-DATASET_COLUMNS: [0, 1]
-MODEL_PATH: results/trainer1
+#DATASET_PATH: data/bearing_dataset/bearings_1_10.csv
+#DATASET_COLUMNS: [2, 3]
+DATASET_PATH: data/kbm_dataset/gummipumpe.csv
+DATASET_COLUMNS: [1, 2, 3, 4]
+MODEL_PATH: model/trainer1

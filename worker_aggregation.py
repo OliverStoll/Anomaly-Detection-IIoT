@@ -2,8 +2,8 @@ import socket
 from keras.models import load_model
 import numpy as np
 
-from helpers.socket_functions import send_msg, recv_msg
-from helpers.config import c
+from scripts.socket_functions import send_msg, recv_msg
+from scripts.config import c
 
 
 class Aggregator:
@@ -38,9 +38,9 @@ class Aggregator:
         weights = []
         weights_new = []
         for client in self.clients:
-            with open(f"results/aggregator/client_{client.id}.h5", "wb") as file:
+            with open(f"model/aggregator/client_{client.id}.h5", "wb") as file:
                 file.write(client.data)
-            model = load_model(f"results/aggregator/client_{client.id}.h5")
+            model = load_model(f"model/aggregator/client_{client.id}.h5")
             weights.append(model.get_weights())
         # print(weights)
         print(len(weights))
@@ -52,8 +52,8 @@ class Aggregator:
             print(len(layer_weights))
             weights_new.append(layer_weights)
         model.set_weights(weights_new)
-        model.save(f"results/aggregator/aggregated.h5")
-        with open(f"results/aggregator/aggregated.h5", 'rb') as file:
+        model.save(f"model/aggregator/aggregated.h5")
+        with open(f"model/aggregator/aggregated.h5", 'rb') as file:
             self.aggregated_data = file.read()
         self.epoch += 1
 
@@ -78,5 +78,5 @@ class Client:
 
 if __name__ == '__main__':
     print("Start of Aggregator")
-    aggregator = Aggregator(ip_port=c.BIND_IP_PORT, model_path='results/aggregator', num_clients=c.CLIENT_NUM)
+    aggregator = Aggregator(ip_port=c.BIND_IP_PORT, model_path='model/aggregator', num_clients=c.CLIENT_NUM)
     aggregator.run()

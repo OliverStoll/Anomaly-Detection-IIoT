@@ -11,9 +11,9 @@ from keras.regularizers import l2
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import mean_squared_error
 
-from helpers.evaluation import plot_all
-from helpers.callbacks import scheduler
-from helpers.config import c
+from scripts.evaluation import plot_all
+from scripts.callbacks import scheduler
+from scripts.config import c
 
 
 def autoencoder_model(X):
@@ -53,7 +53,7 @@ def autoencoder_model(X):
     return model
 
 
-def prepare_data(columns, data_path=f'data/bearing_dataset/bearings_2_10.csv'):
+def prepare_data(data_path, columns):
     """
     Prepare the data for training and evaluation. All features need to be extracted and named. The data is
     normalized and split into training and testing data 80/20.
@@ -63,11 +63,11 @@ def prepare_data(columns, data_path=f'data/bearing_dataset/bearings_2_10.csv'):
     :return: the full data, the training data and the 3d array of the training data
     """
     # TODO: include metadata features
-    df = pd.read_csv(data_path, names=columns)
-    split_len = int(len(df) * 0.8) + (c.SPLIT - int(len(df) * 0.8) % c.SPLIT)
+    df = pd.read_csv(data_path, usecols=columns)
+    if len(df) % c.SPLIT != 0:
+        df = df.iloc[:-(len(df) % c.SPLIT)]
 
-    # extract the columns with the features by index using the columns list
-    df = df.iloc[:, columns]
+    split_len = int(len(df) * 0.8) + (c.SPLIT - int(len(df) * 0.8) % c.SPLIT)
 
     # split the data frame into multiple lists
     data = df.iloc[:, :].values
@@ -85,15 +85,15 @@ def prepare_data(columns, data_path=f'data/bearing_dataset/bearings_2_10.csv'):
     return data, data_3d, train_data_3d
 
 
-def init_model(data_train_3d):
+def init_model(train_data_3d):
     """
     Initialize the model with the training data. The training data needs to be formatted as a 3D array.
     The training data is split into training and validation data.
 
-    :param data_train_3d: the training data
+    :param train_data_3d: the training data, formatted as a 3D array (batch, timesteps, features)
     :return: the initialized model
     """
-    model = autoencoder_model(data_train_3d)
+    model = autoencoder_model(train_data_3d)
     opt = optimizers.Adam(learning_rate=c.LEARNING_RATE, clipnorm=1.0, clipvalue=0.5)
     model.compile(optimizer=opt, loss=c.LOSS_FN)
     return model
@@ -139,12 +139,12 @@ def evaluate_model(model, data_3d, history):
     results_df['mse'] = mean_squared_error(data_2d, pred_2d)
     results_df['Anomaly'] = results_df['Loss_MSE'] > c.THRESHOLD
     plot_all(results=results_df, loss=history['loss'], val_loss=history['val_loss'], num_features=data_2d.shape[1])
-    # model.save(f"results/models/{history['val_loss'][-1]:.3e}_{SPLIT}_{2 ** LAYERS_EXPONENT}_{EPOCHS}_{BATCH_SIZE}_{LEARNING_RATE:.0e}.h5")
+    # model.save(f"model/model/{history['val_loss'][-1]:.3e}_{SPLIT}_{2 ** LAYERS_EXPONENT}_{EPOCHS}_{BATCH_SIZE}_{LEARNING_RATE:.0e}.h5")
     # winsound.Beep(440, 800)
 
 
 if __name__ == '__main__':
-    data, data_3d, train_data_3d = prepare_data(columns=c.DATASET_COLUMNS, data_path=c.DATASET_PATH)
-    model = init_model(data_train_3d=train_data_3d)
+    data, data_3d, train_data_3d = prepare_data(data_path=c.DATASET_PATH, columns=c.DATASET_COLUMNS)
+    model = init_model(train_data_3d=train_data_3d)
     model, history = train_model(model=model, data_train_3d=train_data_3d, epochs=c.EPOCHS)
     evaluate_model(model=model, data_3d=data_3d, history=history)

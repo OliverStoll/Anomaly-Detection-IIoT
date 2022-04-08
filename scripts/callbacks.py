@@ -1,4 +1,4 @@
-from helpers.config import c
+from scripts.config import c
 
 
 def scheduler(epoch, lr):
