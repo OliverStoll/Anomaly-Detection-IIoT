@@ -1,7 +1,4 @@
-import numpy as np
 import tensorflow as tf
-import yaml
-import os
 import pandas as pd
 
 from keras.layers import Input, Dense, LSTM, TimeDistributed, RepeatVector
@@ -11,7 +8,7 @@ from keras.regularizers import l2
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import mean_squared_error
 
-from scripts.evaluation import plot_all
+from evaluation import plot_all
 from scripts.callbacks import scheduler
 from scripts.config import c
 
@@ -26,7 +23,7 @@ def autoencoder_model(X):
     :return: the initialized model
     """
     # print all relevant information
-    print(f'Input shape: {X.shape} - Layers size: {c.LAYER_SIZES}')
+    print(f'INPUT: {X.shape} - LAYERS: {c.LAYER_SIZES}')
 
     # create the input layer
     inputs = Input(shape=(X.shape[1], X.shape[2]))
@@ -63,7 +60,7 @@ def prepare_data(data_path, columns):
     :return: the full data, the training data and the 3d array of the training data
     """
     # TODO: include metadata features
-    df = pd.read_csv(data_path, usecols=columns)
+    df = pd.read_csv(data_path, sep=';', usecols=columns, header=None)
     if len(df) % c.SPLIT != 0:
         df = df.iloc[:-(len(df) % c.SPLIT)]
 
@@ -144,6 +141,8 @@ def evaluate_model(model, data_3d, history):
 
 
 if __name__ == '__main__':
+    import os
+    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
     data, data_3d, train_data_3d = prepare_data(data_path=c.DATASET_PATH, columns=c.DATASET_COLUMNS)
     model = init_model(train_data_3d=train_data_3d)
     model, history = train_model(model=model, data_train_3d=train_data_3d, epochs=c.EPOCHS)

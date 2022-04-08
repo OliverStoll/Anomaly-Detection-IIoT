@@ -29,8 +29,8 @@ def plot_all(results, loss, val_loss, num_features):
     # create a subplot for the predictions and the actual values
     plt.subplot(2, 2, 1)
     for i in range(1):
-        plt.plot(results[f'Pred_{i}'], label=f'pred_{i}')
-        plt.plot(results[f'Data_{i}'], label=f'actual_{i}')
+        plt.plot(results[f'Pred_{i}'], label=f'pred_{i}', color=(1-i*0.1, 0, 0))
+        plt.plot(results[f'Data_{i}'], label=f'actual_{i}', color=(0, 0, 1-i*0.1))
     plt.legend(loc='upper left')
     plt.title('Predictions and Actual Values', fontdict=font_d)
 
@@ -38,21 +38,21 @@ def plot_all(results, loss, val_loss, num_features):
     plt.subplot(2, 2, 2)
     plt.title("Anomaly Score", fontdict=font_d)
     plt.plot(results['Loss_MSE'], label='Loss_MSE')
-    plt.ylim(0, max(results['Loss_MSE']) * 1.2)
+    plt.ylim(0, min(max(results['Loss_MSE']) * 1.2, 1))
     plt.axhline(y=c.THRESHOLD, color='r', linestyle='-', label="Threshold")
 
     # create a subplot for the predictions and the actual values of the chunk
     plt.subplot(2, 2, 3)
     plt.title("Vibration - Chunk", fontdict=font_d)
     for i in range(num_features):
-        plt.plot(results_chunk[f'Data_{i}'].tolist(), label=f"Data_{i}")
-        plt.plot(results_chunk[f'Pred_{i}'].tolist(), label=f"Prediction_{i}")
+        plt.plot(results_chunk[f'Data_{i}'].tolist(), label=f"Data_{i}", color=(1-i*0.2, i*0.2, 0))
+        plt.plot(results_chunk[f'Pred_{i}'].tolist(), label=f"Prediction_{i}", color=(0, i*0.2, 1-i*0.2))
     plt.legend()
 
     # create a subplot that includes all metrics in text form
     plt.subplot(2, 2, 4)
     plt.axis('off')
-    text = f"Epochs: {c.EPOCHS}\nLoss:     {loss[-1]:.1e}\nVal_Loss: {val_loss[-1]:.1e}\n\n" \
+    text = f"Epochs: {c.EPOCHS}\nLoss:       {loss[-1]:.1e}\nVal_Loss: {val_loss[-1]:.1e}\n\n" \
            f"Batch: {c.BATCH_SIZE}\nLearn_r: {c.LEARNING_RATE:.0e}\nLR_Red: {c.LR_DECAY}" \
            f"\n\nLSTM: {c.LAYER_SIZES}\nSplit: {c.SPLIT}"
     plt.text(0.2, 0.9, text, ha='left', va='top', fontdict={'fontsize': 20})
@@ -77,5 +77,16 @@ def split_data_nasa(split_size, path):
     # winsound.Beep(400,800)
 
 
+def split_data_kbm(split_size, path, save_path):
+    num_features = 4
+    df = pd.read_csv(f"{path}", sep=';')
+    dfs = np.array_split(df, split_size)
+    for df_chunk in dfs:
+        mean_abs = np.array(df_chunk.abs().mean())
+        mean_abs = pd.DataFrame(mean_abs.reshape(1, num_features))
+        mean_abs.to_csv(save_path, mode='a', index=False, header=False, sep=';')
+
+
 if __name__ == '__main__':
-    split_data_nasa(split_size=100, path='data/bearing_dataset/bearings_3')
+    split_data_kbm(split_size=100, path='data/kbm_dataset/gummipumpe_4000.csv',
+                   save_path="data/kbm_dataset/gummipumpe_100.csv")
