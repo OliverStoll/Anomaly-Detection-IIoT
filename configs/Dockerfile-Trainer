@@ -4,13 +4,10 @@ ENV PYTHONUNBUFFERED=1
 ENV PATH_APP /app
 WORKDIR $PATH_APP
 
-# Defaults, Environment Variables can be overwritten while starting the container with '-e'
-# TODO: import environment variables into config or split SERVER_IP into two different variables
-ENV SERVER_IP 0.0.0.0
-
+# TODO: import environment variables into config?
 
 COPY .. .
 
-RUN pip install --no-cache-dir -r .requirements.txt
+RUN pip install --no-cache-dir -r configs/requirements.txt
 
 CMD [ "python", "./worker_training.py" ]

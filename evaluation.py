@@ -80,13 +80,18 @@ def split_data_nasa(split_size, path):
 def split_data_kbm(split_size, path, save_path):
     num_features = 4
     df = pd.read_csv(f"{path}", sep=';')
-    dfs = np.array_split(df, split_size)
-    for df_chunk in dfs:
-        mean_abs = np.array(df_chunk.abs().mean())
-        mean_abs = pd.DataFrame(mean_abs.reshape(1, num_features))
-        mean_abs.to_csv(save_path, mode='a', index=False, header=False, sep=';')
+    # drop the ending rows not dividable by 4000
+    df = df.iloc[:-(len(df) % 4000)]
+    print(len(df))
+    df_measurements = np.array_split(df, len(df)/4000)
+    for df_measurement in df_measurements:
+        dfs = np.array_split(df_measurement, split_size)
+        for df_chunk in dfs:
+            mean_abs = np.array(df_chunk.abs().mean())
+            mean_abs = pd.DataFrame(mean_abs.reshape(1, num_features))
+            mean_abs.to_csv(save_path, mode='a', index=False, header=False, sep=';')
 
 
 if __name__ == '__main__':
-    split_data_kbm(split_size=100, path='data/kbm_dataset/gummipumpe_4000.csv',
-                   save_path="data/kbm_dataset/gummipumpe_100.csv")
+    split_data_kbm(split_size=10, path='data/kbm_dataset/gummipumpe_4000.csv',
+                   save_path="data/kbm_dataset/gummipumpe_10.csv")

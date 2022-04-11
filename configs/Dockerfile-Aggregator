@@ -8,6 +8,6 @@ WORKDIR $PATH_APP
 
 COPY . .
 
-RUN pip install --no-cache-dir -r _requirements.txt
+RUN pip install --no-cache-dir -r configs/requirements.txt
 
 CMD [ "python", "./worker_aggregation.py" ]

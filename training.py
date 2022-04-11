@@ -61,6 +61,7 @@ def prepare_data(data_path, columns):
     """
     # TODO: include metadata features
     df = pd.read_csv(data_path, sep=';', usecols=columns, header=None)
+    print(df)
     if len(df) % c.SPLIT != 0:
         df = df.iloc[:-(len(df) % c.SPLIT)]
 
