@@ -10,7 +10,7 @@ from sklearn.metrics import mean_squared_error
 
 from evaluation import plot_all
 from scripts.callbacks import scheduler
-from scripts.config import c
+from scripts.config import c, client_c
 
 
 def autoencoder_model(X):
@@ -142,9 +142,7 @@ def evaluate_model(model, data_3d, history):
 
 
 if __name__ == '__main__':
-    import os
-    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-    data, data_3d, train_data_3d = prepare_data(data_path=c.DATASET_PATH, columns=c.DATASET_COLUMNS)
+    data, data_3d, train_data_3d = prepare_data(data_path=client_c['DATASET_PATH'], columns=client_c['DATASET_COLUMNS'])
     model = init_model(train_data_3d=train_data_3d)
     model, history = train_model(model=model, data_train_3d=train_data_3d, epochs=c.EPOCHS)
     evaluate_model(model=model, data_3d=data_3d, history=history)

@@ -5,7 +5,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 from training import *
 from scripts.socket_functions import send_msg, recv_msg
-from scripts.config import c
+from scripts.config import c, client_c
 
 
 class Trainer:
@@ -53,7 +53,7 @@ class Trainer:
 
 
 if __name__ == '__main__':
-    trainer = Trainer(server_ip_port=c.SERVER_IP_PORT, data_path=f'data/bearing_dataset/bearings_1_10.csv',
-                      data_cols=[0, 1], model_path=c.MODEL_PATH)
+    trainer = Trainer(server_ip_port=c.SERVER_IP_PORT, data_path=client_c['DATASET_PATH'],
+                      data_cols=client_c['DATASET_COLUMNS'], model_path=client_c['MODEL_PATH'])
     trainer.run(stop=c.EPOCHS)
 

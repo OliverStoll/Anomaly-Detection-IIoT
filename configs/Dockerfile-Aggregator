@@ -4,7 +4,8 @@ ENV PYTHONUNBUFFERED=1
 ENV PATH_APP /app
 WORKDIR $PATH_APP
 
-# TODO: make env variables passable?
+# the config file to be imported can be changed here and through -e in Kubernetes
+ENV CONFIG_FILE config.yaml
 
 COPY . .
 
