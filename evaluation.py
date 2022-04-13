@@ -38,7 +38,7 @@ def plot_all(results, loss, val_loss, num_features):
     plt.subplot(2, 2, 2)
     plt.title("Anomaly Score", fontdict=font_d)
     plt.plot(results['Loss_MSE'], label='Loss_MSE')
-    plt.ylim(0, min(max(results['Loss_MSE']) * 1.2, 1))
+    plt.ylim(0, min(max(results['Loss_MSE']) * 1.2, 5 * c.THRESHOLD))
     plt.axhline(y=c.THRESHOLD, color='r', linestyle='-', label="Threshold")
 
     # create a subplot for the predictions and the actual values of the chunk
@@ -77,14 +77,23 @@ def split_data_nasa(split_size, path):
     # winsound.Beep(400,800)
 
 
-def split_data_kbm(split_size, path, save_path):
+def split_data_kbm(split_size, path):
     num_features = 4
-    df = pd.read_csv(f"{path}", sep=',')
+    save_path = f"{path}_{split_size}.csv"
+    # delete old file if exists
+    if os.path.exists(save_path):
+        os.remove(save_path)
+    path = f"{path}_4000.csv"
+    df = pd.read_csv(path, sep=',')
     # drop the ending rows not dividable by 4000
     df = df.iloc[:-(len(df) % 4000)]
-    print(len(df))
+    print(int(len(df) / 400000) * 'x')
     df_measurements = np.array_split(df, len(df)/4000)
+
+    counter = 0
     for df_measurement in df_measurements:
+        counter += 1
+        print('x', end='') if counter % 100 == 0 else None
         dfs = np.array_split(df_measurement, split_size)
         for df_chunk in dfs:
             mean_abs = np.array(df_chunk.abs().mean())
@@ -97,11 +106,9 @@ def import_csv(path, name):
     df[['tags', 'temperature']] = df['tags'].str.split('temperature=', expand=True)
     # drop tags and time column from dataframe
     df.drop(columns=['tags', 'time'], inplace=True)
-    print(df)
+    print(len(df))
     df.to_csv(f"data/kbm_dataset/{name}_4000.csv", index=False)
 
 
 if __name__ == '__main__':
-    split_data_kbm(split_size=100, path='data/kbm_dataset/stabilus_4000.csv',
-                   save_path="data/kbm_dataset/stabilus_100.csv")
-   #  import_csv('archive/data/KBM Dataset/eval-Pumpe134_v3.csv', name='pumpe_v3')
+    split_data_kbm(split_size=100, path='data/kbm_dataset/piaggio')

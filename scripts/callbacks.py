@@ -2,4 +2,5 @@ from scripts.config import c
 
 
 def scheduler(epoch, lr):
-    return lr * c.LR_DECAY
+    return lr * (1-c.LR_DECAY)
+

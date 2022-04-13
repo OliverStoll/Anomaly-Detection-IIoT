@@ -5,7 +5,7 @@ from keras.layers import Input, Dense, LSTM, TimeDistributed, RepeatVector
 from keras.models import Model
 from tensorflow.keras import optimizers
 from keras.regularizers import l2
-from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from sklearn.metrics import mean_squared_error
 
 from evaluation import plot_all
@@ -59,20 +59,24 @@ def prepare_data(data_path, columns):
     :param columns: the columns to extract from the csv file
     :return: the full data, the training data and the 3d array of the training data
     """
-    # TODO: include metadata features
     df = pd.read_csv(data_path, sep=';', usecols=columns, header=None)
-    print(df)
+    # drip the last rows that are not a full split anymore
     if len(df) % c.SPLIT != 0:
         df = df.iloc[:-(len(df) % c.SPLIT)]
 
-    split_len = int(len(df) * 0.8) + (c.SPLIT - int(len(df) * 0.8) % c.SPLIT)
+    # split the data into training and testing data 80/20 (only for bearing)
+    if 'bearing' in c.CLIENT_1['DATASET_PATH']:
+        split_len = int(len(df) * 0.8) + (c.SPLIT - int(len(df) * 0.8) % c.SPLIT)
+    else:
+        split_len = len(df)
 
     # split the data frame into multiple lists
     data = df.iloc[:, :].values
     train_data = df[:split_len].iloc[:, :].values
 
     # normalize the data
-    scaler = MinMaxScaler()
+    # TODO: Standard or MinMax?
+    scaler = StandardScaler()
     data = scaler.fit_transform(data)
     train_data = scaler.transform(train_data)
 
@@ -109,7 +113,7 @@ def train_model(model, data_train_3d, epochs=1):
     """
     callback = tf.keras.callbacks.LearningRateScheduler(scheduler)
     _history = model.fit(data_train_3d, data_train_3d, epochs=epochs, batch_size=c.BATCH_SIZE,
-                         callbacks=[callback], validation_split=0.1).history
+                         callbacks=[callback], validation_split=c.VAL_SPLIT).history
     return model, _history
 
 
@@ -142,7 +146,8 @@ def evaluate_model(model, data_3d, history):
 
 
 if __name__ == '__main__':
-    data, data_3d, train_data_3d = prepare_data(data_path=client_c['DATASET_PATH'], columns=client_c['DATASET_COLUMNS'])
+    data, data_3d, train_data_3d = prepare_data(data_path=f"data/{client_c['DATASET_PATH']}_{c.SPLIT}.csv",
+                                                columns=client_c['DATASET_COLUMNS'])
     model = init_model(train_data_3d=train_data_3d)
     model, history = train_model(model=model, data_train_3d=train_data_3d, epochs=c.EPOCHS)
     evaluate_model(model=model, data_3d=data_3d, history=history)
