@@ -18,8 +18,8 @@ class Trainer:
         model (keras.model): The model to be trained.
     """
     def __init__(self, server_ip_port, data_path, data_cols, model_path):
-        self.data, self.data_3d, self.data_train_3d = prepare_data(data_path=data_path, columns=data_cols)
-        self.model = init_model(train_data_3d=self.data_train_3d)
+        self.data, self.data_3d, self.data_train_3d = load_and_normalize_data(data_path=data_path, columns=data_cols)
+        self.model = init_models(train_data_3d=self.data_train_3d)
         self.model_path = model_path
         self.history = []
         self.epoch = 0
@@ -28,7 +28,7 @@ class Trainer:
         print(f"Connected to {server_ip_port}")
 
     def train_round(self, epochs=1):
-        self.model, history = train_model(model=self.model, data_train_3d=self.data_train_3d, epochs=epochs)
+        self.model, history = train_models(model=self.model, data_train_3d=self.data_train_3d, epochs=epochs)
         self.history.append(history)
         self.epoch += epochs
 

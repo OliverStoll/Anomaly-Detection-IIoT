@@ -5,14 +5,14 @@ CLIENT_NUM: 2
 EPOCHS: 100
 BATCH_SIZE: 16
 THRESHOLD: 0.1
-LEARNING_RATE: 0.001
-LR_DECAY: 0.02
+LEARNING_RATE: 0.0001
+LR_DECAY: 0.002
 LAYER_SIZES: [128, 32, 8]
 LOSS_FN: mse
 VAL_SPLIT: 0.1
 SPLIT: 10
 
 CLIENT_1:
-    DATASET_PATH: bearing_dataset/bearings_1  # kbm_dataset/piaggio
+    DATASET_PATH: bearing_dataset/bearings_2  # kbm_dataset/piaggio
     DATASET_COLUMNS: [0, 1]
     MODEL_PATH: model/trainer1
