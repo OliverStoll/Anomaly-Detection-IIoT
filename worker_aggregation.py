@@ -2,8 +2,8 @@ import socket
 from keras.models import load_model
 import numpy as np
 
-from scripts.socket_functions import send_msg, recv_msg
-from scripts.config import c
+from functionality.socket_functions import send_msg, recv_msg
+from functionality.config import c
 
 
 class Aggregator:

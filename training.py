@@ -1,5 +1,6 @@
 import tensorflow as tf
 import pandas as pd
+import numpy as np
 
 from keras.layers import Input, Dense, LSTM, TimeDistributed, RepeatVector
 from keras.models import Model
@@ -9,8 +10,8 @@ from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from sklearn.metrics import mean_squared_error
 
 from evaluation import plot_all
-from scripts.callbacks import scheduler
-from scripts.config import c, client_c
+from functionality.callbacks import scheduler
+from functionality.config import c, client_c
 
 
 def autoencoder_model(X):
@@ -60,7 +61,7 @@ def prepare_data(data_path, columns):
     :return: the full data, the training data and the 3d array of the training data
     """
     df = pd.read_csv(data_path, sep=';', usecols=columns, header=None)
-    # drip the last rows that are not a full split anymore
+    # drop the last rows that are not a full split anymore
     if len(df) % c.SPLIT != 0:
         df = df.iloc[:-(len(df) % c.SPLIT)]
 
@@ -76,13 +77,17 @@ def prepare_data(data_path, columns):
 
     # normalize the data
     # TODO: Standard or MinMax?
-    scaler = StandardScaler()
+    scaler = MinMaxScaler()
     data = scaler.fit_transform(data)
     train_data = scaler.transform(train_data)
 
     # reshape data to 3d arrays with the second value equal to the number of timesteps (SPLIT)
     train_data_3d = train_data.reshape((-1, c.SPLIT, train_data.shape[1]))
     data_3d = data.reshape((-1, c.SPLIT, data.shape[1]))
+
+    # TODO: calculate the FFT of the data
+    # fft0 = abs(np.fft.fft(data_3d[0, :, 0]))
+    # fft1 = abs(np.fft.fft(data[:, 1]))
 
     return data, data_3d, train_data_3d
 

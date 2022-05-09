@@ -4,8 +4,8 @@ from keras.models import load_model
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 from training import *
-from scripts.socket_functions import send_msg, recv_msg
-from scripts.config import c, client_c
+from functionality.socket_functions import send_msg, recv_msg
+from functionality.config import c, client_c
 
 
 class Trainer:

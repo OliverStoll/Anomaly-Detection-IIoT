@@ -15,3 +15,5 @@ if config_file is None:
 c = yaml.safe_load(open(f"configs/training/{config_file}"))
 client_c = c[client]
 c = SimpleNamespace(**c)
+
+print(c)

@@ -2,17 +2,17 @@ SERVER_IP_PORT: ('localhost', 55555)
 BIND_IP_PORT: ('0.0.0.0', 55555)
 CLIENT_NUM: 2
 
-EPOCHS: 200
+EPOCHS: 100
 BATCH_SIZE: 16
 THRESHOLD: 0.1
 LEARNING_RATE: 0.001
 LR_DECAY: 0.02
-LAYER_SIZES: [128, 64, 8]
+LAYER_SIZES: [128, 32, 8]
 LOSS_FN: mse
 VAL_SPLIT: 0.1
 SPLIT: 10
 
 CLIENT_1:
-    DATASET_PATH: kbm_dataset/piaggio
-    DATASET_COLUMNS: [0, 1, 2, 3]
+    DATASET_PATH: bearing_dataset/bearings_1  # kbm_dataset/piaggio
+    DATASET_COLUMNS: [0, 1]
     MODEL_PATH: model/trainer1

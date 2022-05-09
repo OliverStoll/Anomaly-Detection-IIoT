@@ -5,7 +5,7 @@ import pandas as pd
 import os
 from matplotlib import pyplot as plt
 
-from scripts.config import c
+from functionality.config import c
 
 
 def plot_all(results, loss, val_loss, num_features):
