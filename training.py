@@ -1,6 +1,7 @@
 import tensorflow as tf
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
 
 from keras.layers import Input, Dense, Flatten, Reshape, LSTM, TimeDistributed, RepeatVector
 from keras.models import Model
@@ -188,11 +189,18 @@ def train_models(model, model_fft, data_train_3d, fft_train_3d, epochs=1):
     # initialize the learning rate scheduler
     callback = tf.keras.callbacks.LearningRateScheduler(scheduler)
 
-    # train the models
-    _history_fft = model_fft.fit(fft_train_3d, fft_train_3d, epochs=epochs * 3, batch_size=c.BATCH_SIZE, validation_split=c.VAL_SPLIT).history
-    _history = model.fit(data_train_3d, data_train_3d, epochs=epochs, batch_size=c.BATCH_SIZE, callbacks=[callback], validation_split=c.VAL_SPLIT).history
+    # create empty histories
+    _history_fft = None
+    _history = None
 
-    return model, _history, _history_fft
+    # train the models, if they got passed
+    if model_fft:
+        _history_fft = model_fft.fit(fft_train_3d, fft_train_3d, epochs=epochs * 3, batch_size=c.BATCH_SIZE, validation_split=c.VAL_SPLIT).history
+
+    if model:
+        _history = model.fit(data_train_3d, data_train_3d, epochs=epochs, batch_size=c.BATCH_SIZE, callbacks=[callback], validation_split=c.VAL_SPLIT).history
+
+    return model, model_fft, _history, _history_fft
 
 
 def evaluate_model(model, data_3d, history):
@@ -228,9 +236,39 @@ def evaluate_model(model, data_3d, history):
     plot_all(results=results_df, loss=history['loss'], val_loss=history['val_loss'], num_features=data_2d.shape[1])
 
 
+def evaluate_model_fft(model, fft_data_3d):
+    """
+    Evaluate the fft-autoencoder model. Plot all relevant statistics in one image.
+
+    :param model: the fft-autoencoder model to be evaluated.
+    :return:
+    """
+
+    # get the predictions as 2d array from the model
+    pred_2d = model.predict(fft_data_3d).reshape((-1, fft_data_3d.shape[2]))
+
+    # reformat the data to a 2d array for evaluation
+    data_2d = fft_data_3d.reshape((-1, fft_data_3d.shape[2]))
+
+    # calculate the anomaly score
+    mse = ((data_2d - pred_2d) ** 2)
+    plt.plot(mse)
+    plt.show()
+
+    # todo: normalize mse for multiple features efficiently to find one anomaly score
+    scaler = MinMaxScaler()
+    mse_s = scaler.fit_transform(mse)
+    mse_sum = mse_s[:,0] + mse_s[:,0]
+    plt.plot(mse_sum)
+    plt.show()
+
+
 if __name__ == '__main__':
     data, data_3d, train_data_3d = load_and_normalize_data(data_path=f"data/{client_c['DATASET_PATH']}_{c.SPLIT}.csv",
                                                            columns=client_c['DATASET_COLUMNS'])
+    fft_data_3d = calculate_fft(train_data_3d)
     model, model_fft = init_models(train_data_3d=train_data_3d)
-    model, history, history_fft = train_models(model=model, model_fft=model_fft, data_train_3d=train_data_3d, fft_train_3d=calculate_fft(train_data_3d), epochs=c.EPOCHS)
+    model, model_fft, history, history_fft = train_models(model=model, model_fft=model_fft, data_train_3d=train_data_3d,
+                                                          fft_train_3d=fft_data_3d, epochs=c.EPOCHS)
+    evaluate_model_fft(model=model_fft, fft_data_3d=fft_data_3d)
     evaluate_model(model=model, data_3d=data_3d, history=history)
