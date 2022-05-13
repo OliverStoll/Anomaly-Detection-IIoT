@@ -1,14 +1,14 @@
-# import winsound
-
 import numpy as np
 import pandas as pd
 import os
 from matplotlib import pyplot as plt
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.metrics import mean_squared_error
 
 from functionality.config import c
 
 
-def plot_all(results, loss, val_loss, num_features):
+def plot_debug(results, loss, val_loss, num_features):
     """
     Plot the predictions and the actual values of the dataset. Also plot all relevant metrics such as loss and val_loss.
 
@@ -60,55 +60,67 @@ def plot_all(results, loss, val_loss, num_features):
     plt.savefig(f"archive/results/{val_loss[-1]:.3e}_{c.SPLIT}_{c.LAYER_SIZES}_{c.EPOCHS}_"
                 f"{c.BATCH_SIZE}_{c.LEARNING_RATE:.1e}.png")
     plt.show()
+
     return
 
 
-def split_data_nasa(split_size, path):
-    chunk_list = []
-    for file in os.scandir(path):
-        df = pd.read_csv(f"{path}/{file.name}", sep='\t', header=None)
-        # df.to_csv(f"data/bearing_dataset/absolutes_3_{split_size}.csv", mode='a', index=False, header=False)
-        dfs = np.array_split(df, split_size)
-        for df_chunk in dfs:
-            mean_abs = np.array(df_chunk.abs().mean())
-            mean_abs = pd.DataFrame(mean_abs.reshape(1, 4))
-            mean_abs.to_csv(f"{path}_{split_size}.csv", mode='a', index=False, header=False)
-        print('x', end='')
-    # winsound.Beep(400,800)
+def evaluate_model_lstm(model, data_3d, history):
+    """
+    Evaluate the model on the test data. This includes plotting all relevant metrics.
+
+    :param model: The autoencoder model to evaluate
+    :param data_3d: The test data to evaluate the model on, formatted as a 3D array
+    :param history: The training history of the model
+    :return:
+    """
+
+    # get the predictions as 2d array from the model
+    pred_2d = model.predict(data_3d).reshape((-1, data_3d.shape[2]))
+
+    # reformat the data to a 2D array for evaluation
+    data_2d = data_3d.reshape((-1, data_3d.shape[2]))
+
+    # store both predictions and data in a dataframe
+    results_df = pd.DataFrame()
+    for num_feature in range(data_2d.shape[1]):
+        results_df[f'Data_{num_feature}'] = data_2d[:, num_feature]
+        results_df[f'Pred_{num_feature}'] = pred_2d[:, num_feature]
+
+    # calculate the mean squared error over all features
+    results_df['Loss_MSE'] = ((data_2d - pred_2d) ** 2).mean(axis=1)
+    results_df['mse'] = mean_squared_error(data_2d, pred_2d)
+
+    # determine the anomalies in the data based on the mse and the threshold
+    results_df['Anomaly'] = results_df['Loss_MSE'] > c.THRESHOLD
+
+    # plot the results
+    plot_debug(results=results_df, loss=history['loss'], val_loss=history['val_loss'], num_features=data_2d.shape[1])
 
 
-def split_data_kbm(split_size, path):
-    num_features = 4
-    save_path = f"{path}_{split_size}.csv"
-    # delete old file if exists
-    if os.path.exists(save_path):
-        os.remove(save_path)
-    path = f"{path}_4000.csv"
-    df = pd.read_csv(path, sep=',')
-    # drop the ending rows not dividable by 4000
-    df = df.iloc[:-(len(df) % 4000)]
-    print(int(len(df) / 400000) * 'x')
-    df_measurements = np.array_split(df, len(df)/4000)
+def evaluate_model_fft(model, fft_data_3d):
+    """
+    Evaluate the fft-autoencoder model. Plot all relevant statistics in one image.
 
-    counter = 0
-    for df_measurement in df_measurements:
-        counter += 1
-        print('x', end='') if counter % 100 == 0 else None
-        dfs = np.array_split(df_measurement, split_size)
-        for df_chunk in dfs:
-            mean_abs = np.array(df_chunk.abs().mean())
-            mean_abs = pd.DataFrame(mean_abs.reshape(1, num_features))
-            mean_abs.to_csv(save_path, mode='a', index=False, header=False, sep=';')
+    :param model: the fft-autoencoder model to be evaluated.
+    :return:
+    """
 
+    # get the predictions as 2d array from the model
+    pred_2d = model.predict(fft_data_3d).reshape((-1, fft_data_3d.shape[2]))
 
-def import_csv(path, name):
-    df = pd.read_csv(path, sep=',')
-    df[['tags', 'temperature']] = df['tags'].str.split('temperature=', expand=True)
-    # drop tags and time column from dataframe
-    df.drop(columns=['tags', 'time'], inplace=True)
-    print(len(df))
-    df.to_csv(f"data/kbm_dataset/{name}_4000.csv", index=False)
+    # reformat the data to a 2d array for evaluation
+    data_2d = fft_data_3d.reshape((-1, fft_data_3d.shape[2]))
+
+    # calculate the anomaly score
+    mse = ((data_2d - pred_2d) ** 2)
+    plt.plot(mse)
+    plt.show()
+
+    # normalize mse for multiple features efficiently to find one anomaly score
+    scaler = MinMaxScaler()
+    mse_s = scaler.fit_transform(mse)
+    plt.plot(mse_s)
+    plt.show()
 
 
-if __name__ == '__main__':
-    split_data_kbm(split_size=100, path='data/kbm_dataset/piaggio')
+

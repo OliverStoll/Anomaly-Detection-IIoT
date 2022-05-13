@@ -28,7 +28,7 @@ class Trainer:
         print(f"Connected to {server_ip_port}")
 
     def train_round(self, epochs=1):
-        self.model, history = train_models(model=self.model, data_train_3d=self.data_train_3d, epochs=epochs)
+        self.model, history = train_models(model_lstm=self.model, data_train_3d=self.data_train_3d, epochs=epochs)
         self.history.append(history)
         self.epoch += epochs
 
@@ -49,7 +49,7 @@ class Trainer:
             self.train_round()
             self.send_weights()
             self.receive_weights()
-        evaluate_model(model=self.model, data_3d=self.data_3d, history=self.history)
+        evaluate_model_lstm(model=self.model, data_3d=self.data_3d, history=self.history)
 
 
 if __name__ == '__main__':

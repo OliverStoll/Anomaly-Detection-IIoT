@@ -8,9 +8,8 @@ from keras.models import Model
 from tensorflow.keras import optimizers
 from keras.regularizers import l2
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
-from sklearn.metrics import mean_squared_error
 
-from evaluation import plot_all
+from evaluation import evaluate_model_lstm, evaluate_model_fft
 from functionality.callbacks import scheduler
 from functionality.config import c, client_c
 
@@ -128,7 +127,7 @@ def load_and_normalize_data(data_path, columns):
     return data, data_3d, train_data_3d
 
 
-def calculate_fft(data_3d):
+def calculate_fft_from_data(data_3d):
     """
     Calculate the FFT of the data. The Data needs to be a 3D array.
 
@@ -160,8 +159,8 @@ def init_models(train_data_3d):
     """
 
     # get both models from their respective functions
-    fft = calculate_fft(train_data_3d)
-    model = lstm_autoencoder_model(train_data_3d)
+    fft = calculate_fft_from_data(train_data_3d)
+    model_lstm = lstm_autoencoder_model(train_data_3d)
     model_fft = fft_autoencoder_model(fft)
 
     # create two adam optimizers for the models (could be one but not sure if safe to do so)
@@ -169,17 +168,17 @@ def init_models(train_data_3d):
     opt_fft = optimizers.Adam(learning_rate=c.LEARNING_RATE, clipnorm=1.0, clipvalue=0.5)
 
     # compile the models
-    model.compile(optimizer=opt, loss=c.LOSS_FN)
+    model_lstm.compile(optimizer=opt, loss=c.LOSS_FN)
     model_fft.compile(optimizer=opt_fft, loss='mse')
 
-    return model, model_fft
+    return model_lstm, model_fft
 
 
-def train_models(model, model_fft, data_train_3d, fft_train_3d, epochs=1):
+def train_models(model_lstm, model_fft, data_train_3d, fft_train_3d, epochs=1):
     """
     Train the model for a given number of epochs. The training data needs to be formatted as a 3D array.
 
-    :param model: the model to train
+    :param model_lstm: the model to train
     :param data_train_3d: the training data
     :param fft_train_3d: the training data for the FFT-layers
     :param epochs: the number of epochs to train for
@@ -197,78 +196,18 @@ def train_models(model, model_fft, data_train_3d, fft_train_3d, epochs=1):
     if model_fft:
         _history_fft = model_fft.fit(fft_train_3d, fft_train_3d, epochs=epochs * 3, batch_size=c.BATCH_SIZE, validation_split=c.VAL_SPLIT).history
 
-    if model:
-        _history = model.fit(data_train_3d, data_train_3d, epochs=epochs, batch_size=c.BATCH_SIZE, callbacks=[callback], validation_split=c.VAL_SPLIT).history
+    if model_lstm:
+        _history = model_lstm.fit(data_train_3d, data_train_3d, epochs=epochs, batch_size=c.BATCH_SIZE, callbacks=[callback], validation_split=c.VAL_SPLIT).history
 
-    return model, model_fft, _history, _history_fft
-
-
-def evaluate_model(model, data_3d, history):
-    """
-    Evaluate the model on the test data. This includes plotting all relevant metrics.
-
-    :param model: The autoencoder model to evaluate
-    :param data_3d: The test data to evaluate the model on, formatted as a 3D array
-    :param history: The training history of the model
-    :return:
-    """
-
-    # get the predictions as 2d array from the model
-    pred_2d = model.predict(data_3d).reshape((-1, data_3d.shape[2]))
-
-    # reformat the data to a 2D array for evaluation
-    data_2d = data_3d.reshape((-1, data_3d.shape[2]))
-
-    # store both predictions and data in a dataframe
-    results_df = pd.DataFrame()
-    for num_feature in range(data_2d.shape[1]):
-        results_df[f'Data_{num_feature}'] = data_2d[:, num_feature]
-        results_df[f'Pred_{num_feature}'] = pred_2d[:, num_feature]
-
-    # calculate the mean squared error over all features
-    results_df['Loss_MSE'] = ((data_2d - pred_2d) ** 2).mean(axis=1)
-    results_df['mse'] = mean_squared_error(data_2d, pred_2d)
-
-    # determine the anomalies in the data based on the mse and the threshold
-    results_df['Anomaly'] = results_df['Loss_MSE'] > c.THRESHOLD
-
-    # plot the results
-    plot_all(results=results_df, loss=history['loss'], val_loss=history['val_loss'], num_features=data_2d.shape[1])
-
-
-def evaluate_model_fft(model, fft_data_3d):
-    """
-    Evaluate the fft-autoencoder model. Plot all relevant statistics in one image.
-
-    :param model: the fft-autoencoder model to be evaluated.
-    :return:
-    """
-
-    # get the predictions as 2d array from the model
-    pred_2d = model.predict(fft_data_3d).reshape((-1, fft_data_3d.shape[2]))
-
-    # reformat the data to a 2d array for evaluation
-    data_2d = fft_data_3d.reshape((-1, fft_data_3d.shape[2]))
-
-    # calculate the anomaly score
-    mse = ((data_2d - pred_2d) ** 2)
-    plt.plot(mse)
-    plt.show()
-
-    # todo: normalize mse for multiple features efficiently to find one anomaly score
-    scaler = MinMaxScaler()
-    mse_s = scaler.fit_transform(mse)
-    mse_sum = mse_s[:,0] + mse_s[:,0]
-    plt.plot(mse_sum)
-    plt.show()
+    return model_lstm, model_fft, _history, _history_fft
 
 
 if __name__ == '__main__':
     data, data_3d, train_data_3d = load_and_normalize_data(data_path=f"data/{client_c['DATASET_PATH']}_{c.SPLIT}.csv",
                                                            columns=client_c['DATASET_COLUMNS'])
-    fft_data_3d = calculate_fft(train_data_3d)
+    fft_data_3d = calculate_fft_from_data(train_data_3d)
     model, model_fft = init_models(train_data_3d=train_data_3d)
-    model, model_fft, history, history_fft = train_models(model=model, model_fft=model_fft, data_train_3d=train_data_3d,
+    model, model_fft, history, history_fft = train_models(model_lstm=model, model_fft=model_fft, data_train_3d=train_data_3d,
                                                           fft_train_3d=fft_data_3d, epochs=c.EPOCHS)
     evaluate_model_fft(model=model_fft, fft_data_3d=fft_data_3d)
-    evaluate_model(model=model, data_3d=data_3d, history=history)
+    evaluate_model_lstm(model=model, data_3d=data_3d, history=history)
