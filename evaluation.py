@@ -57,11 +57,16 @@ def plot_debug(results, loss, val_loss, num_features):
            f"\n\nLSTM: {c.LAYER_SIZES}\nSplit: {c.SPLIT}"
     plt.text(0.2, 0.9, text, ha='left', va='top', fontdict={'fontsize': 20})
 
-    plt.savefig(f"archive/results/{val_loss[-1]:.3e}_{c.SPLIT}_{c.LAYER_SIZES}_{c.EPOCHS}_"
-                f"{c.BATCH_SIZE}_{c.LEARNING_RATE:.1e}.png")
-    plt.show()
+    # create dir if it doesn't exist
+    dir = f"archive/results/{c.CLIENT_1['DATASET_PATH']}"
+    if not os.path.exists(dir):
+        os.makedirs(dir)
 
-    return
+    # save the figure
+    plt.savefig(f"archive/results/{c.CLIENT_1['DATASET_PATH']}/{val_loss[-1]:.3e}_{c.SPLIT}.png")
+
+    # show the figure
+    plt.show()
 
 
 def evaluate_model_lstm(model, data_3d, history):
@@ -97,7 +102,7 @@ def evaluate_model_lstm(model, data_3d, history):
     plot_debug(results=results_df, loss=history['loss'], val_loss=history['val_loss'], num_features=data_2d.shape[1])
 
 
-def evaluate_model_fft(model, fft_data_3d):
+def evaluate_model_fft(model, fft_data_3d, plot_normalized=False):
     """
     Evaluate the fft-autoencoder model. Plot all relevant statistics in one image.
 
@@ -111,16 +116,21 @@ def evaluate_model_fft(model, fft_data_3d):
     # reformat the data to a 2d array for evaluation
     data_2d = fft_data_3d.reshape((-1, fft_data_3d.shape[2]))
 
-    # calculate the anomaly score
+    # calculate the anomaly score and plot it
     mse = ((data_2d - pred_2d) ** 2)
     plt.plot(mse)
+    plt.title("FFT Autoencoder Anomaly Score")
     plt.show()
 
     # normalize mse for multiple features efficiently to find one anomaly score
     scaler = MinMaxScaler()
     mse_s = scaler.fit_transform(mse)
-    plt.plot(mse_s)
-    plt.show()
+
+    # if requested, plot the normalized mse
+    if plot_normalized:
+        plt.plot(mse_s)
+        plt.title("FFT Autoencoder Anomaly Score (Normalized)")
+        plt.show()
 
 
 

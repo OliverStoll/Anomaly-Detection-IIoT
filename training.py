@@ -121,10 +121,10 @@ def load_and_normalize_data(data_path, columns):
     train_data = scaler.transform(train_data)
 
     # reshape data to 3d arrays with the second value equal to the number of timesteps (SPLIT)
-    train_data_3d = train_data.reshape((-1, c.SPLIT, train_data.shape[1]))
     data_3d = data.reshape((-1, c.SPLIT, data.shape[1]))
+    train_data_3d = train_data.reshape((-1, c.SPLIT, train_data.shape[1]))
 
-    return data, data_3d, train_data_3d
+    return data_3d, train_data_3d
 
 
 def calculate_fft_from_data(data_3d):
@@ -203,11 +203,11 @@ def train_models(model_lstm, model_fft, data_train_3d, fft_train_3d, epochs=1):
 
 
 if __name__ == '__main__':
-    data, data_3d, train_data_3d = load_and_normalize_data(data_path=f"data/{client_c['DATASET_PATH']}_{c.SPLIT}.csv",
-                                                           columns=client_c['DATASET_COLUMNS'])
+    data_3d, train_data_3d = load_and_normalize_data(data_path=f"data/{client_c['DATASET_PATH']}_{c.SPLIT}.csv",
+                                                     columns=client_c['DATASET_COLUMNS'])
     fft_data_3d = calculate_fft_from_data(train_data_3d)
-    model, model_fft = init_models(train_data_3d=train_data_3d)
-    model, model_fft, history, history_fft = train_models(model_lstm=model, model_fft=model_fft, data_train_3d=train_data_3d,
-                                                          fft_train_3d=fft_data_3d, epochs=c.EPOCHS)
+    model_lstm, model_fft = init_models(train_data_3d=train_data_3d)
+    model_lstm, model_fft, history, history_fft = train_models(model_lstm=model_lstm, model_fft=model_fft, data_train_3d=train_data_3d,
+                                                               fft_train_3d=fft_data_3d, epochs=c.EPOCHS)
     evaluate_model_fft(model=model_fft, fft_data_3d=fft_data_3d)
-    evaluate_model_lstm(model=model, data_3d=data_3d, history=history)
+    evaluate_model_lstm(model=model_lstm, data_3d=data_3d, history=history)
