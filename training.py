@@ -149,7 +149,7 @@ def fft_autoencoder_model(X):
     return model
 
 
-class Trainer:
+class Training:
     def __init__(self, data_path, data_columns):
         self.data_3d, self.data_train_3d = load_and_normalize_data(data_path, data_columns)
         self.fft_3d = calculate_fft_from_data(self.data_3d)
@@ -157,7 +157,6 @@ class Trainer:
         self.model_lstm, self.model_fft = self.initialize_models()
         self.history_lstm = {'loss': [], 'val_loss': []}
         self.history_fft = {'loss': [], 'val_loss': []}
-
         self.callbacks = [tf.keras.callbacks.LearningRateScheduler(scheduler)]  # initialize the learning rate scheduler
 
     def initialize_models(self):
@@ -188,9 +187,6 @@ class Trainer:
         """
         Train the model for a given number of epochs. The training data needs to be formatted as a 3D array.
 
-        :param model_lstm: the model to train
-        :param data_train_3d: the training data
-        :param fft_train_3d: the training data for the FFT-layers
         :param epochs: the number of epochs to train for
         :return: the trained model
         """
@@ -204,7 +200,7 @@ class Trainer:
                                             validation_split=c.VAL_SPLIT).history
         _history_fft = self.model_fft.fit(self.fft_train_3d,
                                           self.fft_train_3d,
-                                          epochs=epochs * 3,
+                                          epochs=epochs,
                                           batch_size=c.BATCH_SIZE,
                                           validation_split=c.VAL_SPLIT).history
 
@@ -224,7 +220,7 @@ class Trainer:
 if __name__ == '__main__':
     os.environ['CUDA_VISIBLE_DEVICES'] = '-1'  # disable GPU usage
 
-    trainer = Trainer(data_path=f"data/{client_c['DATASET_PATH']}_{c.SPLIT}.csv",
-                      data_columns=client_c['DATASET_COLUMNS'])
+    trainer = Training(data_path=f"data/{client_c['DATASET_PATH']}_{c.SPLIT}.csv",
+                       data_columns=client_c['DATASET_COLUMNS'])
     trainer.train_models(epochs=c.EPOCHS)
     trainer.evaluation()
