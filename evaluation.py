@@ -92,8 +92,12 @@ def evaluate_model_lstm(model, data_3d, history):
         results_df[f'Pred_{num_feature}'] = pred_2d[:, num_feature]
 
     # calculate the mean squared error over all features
-    results_df['Loss_MSE'] = ((data_2d - pred_2d) ** 2).mean(axis=1)
-    results_df['mse'] = mean_squared_error(data_2d, pred_2d)
+    list_mse = ((data_2d - pred_2d) ** 2).mean(axis=1)
+    results_df['Loss_MSE'] = list_mse
+
+    # calculate the 1 percent quantile of the mse
+    quantile = np.quantile(list_mse, 0.99)
+    print("Quantile:", quantile)
 
     # determine the anomalies in the data based on the mse and the threshold
     results_df['Anomaly'] = results_df['Loss_MSE'] > c.THRESHOLD
@@ -120,6 +124,7 @@ def evaluate_model_fft(model, fft_data_3d, plot_normalized=False):
     mse = ((data_2d - pred_2d) ** 2)
     plt.plot(mse)
     plt.title("FFT Autoencoder Anomaly Score")
+    plt.ylim(0, 5)
     plt.show()
 
     # normalize mse for multiple features efficiently to find one anomaly score

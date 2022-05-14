@@ -2,6 +2,7 @@ import tensorflow as tf
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import os
 
 from keras.layers import Input, Dense, Flatten, Reshape, LSTM, TimeDistributed, RepeatVector
 from keras.models import Model
@@ -12,79 +13,6 @@ from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from evaluation import evaluate_model_lstm, evaluate_model_fft
 from functionality.callbacks import scheduler
 from functionality.config import c, client_c
-
-
-def lstm_autoencoder_model(X):
-    """
-    A function to create a specific autoencoder model. The model is a LSTM-autoencoder with a single hidden layer.
-
-    The size of the hidden layer is determined by the number of features in the input.
-    The size of the LSTM layers is dependant on the LAYERS_EXPONENT parameter in the configs.
-
-    :param X: the input data, which is used to configure the model correctly for the input size
-    :return: the initialized model
-    """
-
-    # print all relevant information
-    print(f'CREATE MODEL - INPUT: {X.shape} - LAYERS: {c.LAYER_SIZES}')
-
-    # create the input layer
-    inputs = Input(shape=(X.shape[1], X.shape[2]))
-    x = inputs
-
-    # create the encoder LSTM layers
-    for i in range(len(c.LAYER_SIZES)-1):
-        x = LSTM(c.LAYER_SIZES[i], activation='relu', return_sequences=True,
-                 kernel_regularizer=l2(1e-7), activity_regularizer=l2(1e-7))(x)
-    x = LSTM(c.LAYER_SIZES[-1], activation='relu', return_sequences=False,
-             kernel_regularizer=l2(1e-7), activity_regularizer=l2(1e-7))(x)
-
-    # pass the encoded data through a dense layer to the decoder
-    x = RepeatVector(X.shape[1])(x)
-
-    # create the decoder LSTM layers
-    for i in reversed(range(len(c.LAYER_SIZES))):
-        x = LSTM(c.LAYER_SIZES[i], activation='relu', return_sequences=True,
-                 kernel_regularizer=l2(1e-7), activity_regularizer=l2(1e-7))(x)
-
-    # create the output layer
-    output = TimeDistributed(Dense(X.shape[2]))(x)
-    model = Model(inputs=inputs, outputs=output)
-    return model
-
-
-def fft_autoencoder_model(X):
-    """
-    A function to create a specific autoencoder model for the FFT data. The model is a Denselayer-autoencoder.
-
-    :param X: the input data, which is used to configure the model correctly for the input size
-    :return: the initialized model
-    """
-
-    # print all relevant information
-    print(f'CREATE FFT MODEL - INPUT: {X.shape} - LAYERS: {c.LAYER_SIZES}')
-
-    # create the input layer
-    inputs = Input(shape=(X.shape[1], X.shape[2]))
-    x = Flatten()(inputs)
-
-    # create the encoder layers
-    x = Dense(64, activation='relu', kernel_regularizer=l2(1e-7), activity_regularizer=l2(1e-7))(x)
-    x = Dense(16, activation='relu', kernel_regularizer=l2(1e-7), activity_regularizer=l2(1e-7))(x)
-
-    # pass the encoded data through a dense layer to the decoder
-    x = Dense(8, activation='relu', kernel_regularizer=l2(1e-7), activity_regularizer=l2(1e-7))(x)
-
-    # create the decoder layers
-    x = Dense(16, activation='relu', kernel_regularizer=l2(1e-7), activity_regularizer=l2(1e-7))(x)
-    x = Dense(64, activation='relu', kernel_regularizer=l2(1e-7), activity_regularizer=l2(1e-7))(x)
-
-    # create the output layer
-    x = Dense(X.shape[1] * X.shape[2])(x)
-    output = Reshape((X.shape[1], X.shape[2]))(x)
-
-    model = Model(inputs=inputs, outputs=output)
-    return model
 
 
 def load_and_normalize_data(data_path, columns):
@@ -148,66 +76,155 @@ def calculate_fft_from_data(data_3d):
     return fft
 
 
-def init_models(train_data_3d):
+def lstm_autoencoder_model(X):
     """
-    Initialize the model with the training data. The training data needs to be formatted as a 3D array.
+    A function to create a specific autoencoder model. The model is a LSTM-autoencoder with a single hidden layer.
 
-    The training data is split into training and validation data.
+    The size of the hidden layer is determined by the number of features in the input.
+    The size of the LSTM layers is dependant on the LAYERS_EXPONENT parameter in the configs.
 
-    :param train_data_3d: the training data, formatted as a 3D array (batch, timesteps, features)
+    :param X: the input data, which is used to configure the model correctly for the input size
     :return: the initialized model
     """
 
-    # get both models from their respective functions
-    fft = calculate_fft_from_data(train_data_3d)
-    model_lstm = lstm_autoencoder_model(train_data_3d)
-    model_fft = fft_autoencoder_model(fft)
+    # print all relevant information
+    print(f'CREATE MODEL - INPUT: {X.shape} - LAYERS: {c.LAYER_SIZES}')
 
-    # create two adam optimizers for the models (could be one but not sure if safe to do so)
-    opt = optimizers.Adam(learning_rate=c.LEARNING_RATE, clipnorm=1.0, clipvalue=0.5)
-    opt_fft = optimizers.Adam(learning_rate=c.LEARNING_RATE, clipnorm=1.0, clipvalue=0.5)
+    # create the input layer
+    inputs = Input(shape=(X.shape[1], X.shape[2]))
+    x = inputs
 
-    # compile the models
-    model_lstm.compile(optimizer=opt, loss=c.LOSS_FN)
-    model_fft.compile(optimizer=opt_fft, loss='mse')
+    # create the encoder LSTM layers
+    for i in range(len(c.LAYER_SIZES)-1):
+        x = LSTM(c.LAYER_SIZES[i], activation='relu', return_sequences=True,
+                 kernel_regularizer=l2(1e-7), activity_regularizer=l2(1e-7))(x)
+    x = LSTM(c.LAYER_SIZES[-1], activation='relu', return_sequences=False,
+             kernel_regularizer=l2(1e-7), activity_regularizer=l2(1e-7))(x)
 
-    return model_lstm, model_fft
+    # pass the encoded data through a dense layer to the decoder
+    x = RepeatVector(X.shape[1])(x)
+
+    # create the decoder LSTM layers
+    for i in reversed(range(len(c.LAYER_SIZES))):
+        x = LSTM(c.LAYER_SIZES[i], activation='relu', return_sequences=True,
+                 kernel_regularizer=l2(1e-7), activity_regularizer=l2(1e-7))(x)
+
+    # create the output layer
+    output = TimeDistributed(Dense(X.shape[2]))(x)
+    model = Model(inputs=inputs, outputs=output)
+    return model
 
 
-def train_models(model_lstm, model_fft, data_train_3d, fft_train_3d, epochs=1):
+def fft_autoencoder_model(X):
     """
-    Train the model for a given number of epochs. The training data needs to be formatted as a 3D array.
+    A function to create a specific autoencoder model for the FFT data. The model is a Denselayer-autoencoder.
 
-    :param model_lstm: the model to train
-    :param data_train_3d: the training data
-    :param fft_train_3d: the training data for the FFT-layers
-    :param epochs: the number of epochs to train for
-    :return: the trained model
+    :param X: the input data, which is used to configure the model correctly for the input size
+    :return: the initialized model
     """
 
-    # initialize the learning rate scheduler
-    callback = tf.keras.callbacks.LearningRateScheduler(scheduler)
+    # print all relevant information
+    print(f'CREATE FFT MODEL - INPUT: {X.shape}')
 
-    # create empty histories
-    _history_fft = None
-    _history = None
+    # create the input layer
+    inputs = Input(shape=(X.shape[1], X.shape[2]))
+    x = Flatten()(inputs)
 
-    # train the models, if they got passed
-    if model_fft:
-        _history_fft = model_fft.fit(fft_train_3d, fft_train_3d, epochs=epochs * 3, batch_size=c.BATCH_SIZE, validation_split=c.VAL_SPLIT).history
+    # create the encoder layers
+    x = Dense(64, activation='relu', kernel_regularizer=l2(1e-7), activity_regularizer=l2(1e-7))(x)
+    x = Dense(16, activation='relu', kernel_regularizer=l2(1e-7), activity_regularizer=l2(1e-7))(x)
 
-    if model_lstm:
-        _history = model_lstm.fit(data_train_3d, data_train_3d, epochs=epochs, batch_size=c.BATCH_SIZE, callbacks=[callback], validation_split=c.VAL_SPLIT).history
+    # pass the encoded data through a dense layer to the decoder
+    x = Dense(6, activation='relu', kernel_regularizer=l2(1e-7), activity_regularizer=l2(1e-7))(x)
 
-    return model_lstm, model_fft, _history, _history_fft
+    # create the decoder layers
+    x = Dense(16, activation='relu', kernel_regularizer=l2(1e-7), activity_regularizer=l2(1e-7))(x)
+    x = Dense(64, activation='relu', kernel_regularizer=l2(1e-7), activity_regularizer=l2(1e-7))(x)
+
+    # create the output layer
+    x = Dense(X.shape[1] * X.shape[2])(x)
+    output = Reshape((X.shape[1], X.shape[2]))(x)
+
+    model = Model(inputs=inputs, outputs=output)
+    return model
+
+
+class Trainer:
+    def __init__(self, data_path, data_columns):
+        self.data_3d, self.data_train_3d = load_and_normalize_data(data_path, data_columns)
+        self.fft_3d = calculate_fft_from_data(self.data_3d)
+        self.fft_train_3d = calculate_fft_from_data(self.data_train_3d)
+        self.model_lstm, self.model_fft = self.initialize_models()
+        self.history_lstm = {'loss': [], 'val_loss': []}
+        self.history_fft = {'loss': [], 'val_loss': []}
+
+        self.callbacks = [tf.keras.callbacks.LearningRateScheduler(scheduler)]  # initialize the learning rate scheduler
+
+    def initialize_models(self):
+        """
+        Initialize the model with the training data. The training data needs to be formatted as a 3D array.
+
+        The training data is split into training and validation data.
+
+        :param train_data_3d: the training data, formatted as a 3D array (batch, timesteps, features)
+        :return: the initialized model
+        """
+
+        # get both models from their respective functions
+        model_lstm = lstm_autoencoder_model(self.data_train_3d)
+        model_fft = fft_autoencoder_model(self.fft_train_3d)
+
+        # create two adam optimizers for the models (could be one but not sure if safe to do so)
+        opt = optimizers.Adam(learning_rate=c.LEARNING_RATE, clipnorm=1.0, clipvalue=0.5)
+        opt_fft = optimizers.Adam(learning_rate=c.LEARNING_RATE, clipnorm=1.0, clipvalue=0.5)
+
+        # compile the models
+        model_lstm.compile(optimizer=opt, loss=c.LOSS_FN)
+        model_fft.compile(optimizer=opt_fft, loss='mse')
+
+        return model_lstm, model_fft
+
+    def train_models(self, epochs=1):
+        """
+        Train the model for a given number of epochs. The training data needs to be formatted as a 3D array.
+
+        :param model_lstm: the model to train
+        :param data_train_3d: the training data
+        :param fft_train_3d: the training data for the FFT-layers
+        :param epochs: the number of epochs to train for
+        :return: the trained model
+        """
+
+        # train the models
+        _history_lstm = self.model_lstm.fit(self.data_train_3d,
+                                            self.data_train_3d,
+                                            epochs=epochs,
+                                            batch_size=c.BATCH_SIZE,
+                                            callbacks=self.callbacks,
+                                            validation_split=c.VAL_SPLIT).history
+        _history_fft = self.model_fft.fit(self.fft_train_3d,
+                                          self.fft_train_3d,
+                                          epochs=epochs * 3,
+                                          batch_size=c.BATCH_SIZE,
+                                          validation_split=c.VAL_SPLIT).history
+
+        self.history_lstm['loss'] += _history_lstm['loss']
+        self.history_lstm['val_loss'] += _history_lstm['val_loss']
+        self.history_fft['loss'] += _history_fft['loss']
+        self.history_fft['val_loss'] += _history_fft['val_loss']
+
+    def evaluation(self):
+        """
+        Debug Evaluation function.
+        """
+        evaluate_model_lstm(model=self.model_lstm, data_3d=self.data_3d, history=self.history_lstm)
+        evaluate_model_fft(model=self.model_fft, fft_data_3d=self.fft_3d)
 
 
 if __name__ == '__main__':
-    data_3d, train_data_3d = load_and_normalize_data(data_path=f"data/{client_c['DATASET_PATH']}_{c.SPLIT}.csv",
-                                                     columns=client_c['DATASET_COLUMNS'])
-    fft_data_3d = calculate_fft_from_data(train_data_3d)
-    model_lstm, model_fft = init_models(train_data_3d=train_data_3d)
-    model_lstm, model_fft, history, history_fft = train_models(model_lstm=model_lstm, model_fft=model_fft, data_train_3d=train_data_3d,
-                                                               fft_train_3d=fft_data_3d, epochs=c.EPOCHS)
-    evaluate_model_fft(model=model_fft, fft_data_3d=fft_data_3d)
-    evaluate_model_lstm(model=model_lstm, data_3d=data_3d, history=history)
+    os.environ['CUDA_VISIBLE_DEVICES'] = '-1'  # disable GPU usage
+
+    trainer = Trainer(data_path=f"data/{client_c['DATASET_PATH']}_{c.SPLIT}.csv",
+                      data_columns=client_c['DATASET_COLUMNS'])
+    trainer.train_models(epochs=c.EPOCHS)
+    trainer.evaluation()
