@@ -52,7 +52,7 @@ class Resampler:
                 # append the new sample to the file
                 mean_abs.to_csv(f"{self.data_path}_{resample_size}.csv", mode='a', index=False, header=False, sep=';')
 
-    def resample_data_kbm(self, resample_size, sampling_rate=4000):
+    def resample_data_kbm(self, resample_size, sampling_rate=4000):  # todo: use timestamps instead of sampling rate
         """
         Resample data from KBM dataset.
 
@@ -88,7 +88,7 @@ class Resampler:
                 mean_abs.to_csv(save_path, mode='a', index=False, header=False, sep=';')
 
 
-def clean_csv_kbm(path, name, sep):
+def clean_csv_kbm(path, name, sep, split_tags=True):
     """
     Function to clean a csv file of the kbm dataset. The function extracts the relevant columns.
 
@@ -99,7 +99,11 @@ def clean_csv_kbm(path, name, sep):
     df = pd.read_csv(path, sep=sep)
 
     # extract the temperature from the tags column
-    df[['tags', 'temperature']] = df['tags'].str.split('temperature=', expand=True)
+    if split_tags:
+        df[['tags', 'temperature']] = df['tags'].str.split('temperature=', expand=True)
+
+    # remove overhang from the tags column
+    df['temperature'] = df['temperature'].str.split(' ', expand=True)[0]
 
     # keep only time and measurement values
     df = df[['time', 'x', 'y', 'z', 'temperature']]
@@ -111,29 +115,75 @@ def clean_csv_kbm(path, name, sep):
     df.to_csv(f"data/kbm_dataset/{name}_4000.csv", index=False)
 
 
-def add_anomaly_data_kbm(path, timestamps, clean_timestamps=True):
+def check_samples(file):
+    df = pd.read_csv(f"data/kbm_dataset/{file}_4000.csv")
+    df['time_measure'] = df['time'].apply(lambda x: x.split('.')[0])
+    old_time = datetime.datetime.now()
+    for time_str in df['time_measure'].unique():
+        time = datetime.datetime.strptime(time_str, '%Y-%m-%d %H:%M:%S')
+        time_dif = time - old_time
+        old_time = time
+        if time_dif < datetime.timedelta(seconds=0):
+            print(time, time_dif)
+        elif time_dif < datetime.timedelta(seconds=100):
+            print(time, time_dif)
+
+
+def clean_samples_kbm(file):
+    df = pd.read_csv(f"data/kbm_dataset/{file}_4000.csv")
+    # sort by time
+    df = df.sort_values(by=['time'])
+    df['time_measure'] = df['time'].apply(lambda x: x.split('.')[0])
+    df.to_csv(f"data/kbm_dataset/{file}_800.csv", index=False)
+
+
+def add_label_kbm(file, timestamps, clean_timestamps=True):
     # convert timestamps from excel format (for easy copy pasting from excel sheet)
     if clean_timestamps:
-        timestamps = [str(datetime.datetime.strptime(ts, '%d/%m/%Y  %H:%M:%S')) for ts in timestamps]
+        timestamps = [datetime.datetime.strptime(ts, '%d/%m/%y  %H:%M:%S') for ts in timestamps]
 
-    print(timestamps)
-    df = pd.read_csv(path)
-
-    # add anomaly label column with 1 when time contains an anomaly timestamp and 0 otherwise
+    # load unlabeled data from path
+    df = pd.read_csv(f"data/kbm_dataset/{file}_4000.csv")
     df['anomaly'] = 0
-    for timestamp in timestamps:
-        df['anomaly'] += df['time'].str.match(timestamp).astype(int)
+    times = df['time'].tolist()
 
+
+    # iterate over all times
+    for timestamp in timestamps:
+        # find the nearest time greater than if no exact match
+        for t in times:
+            # convert comparison-time to datetime
+            try:
+                t = datetime.datetime.strptime(t, '%Y-%m-%d %H:%M:%S.%f')
+            except:
+                t = datetime.datetime.strptime(t, '%Y-%m-%d %H:%M:%S')
+            # check if comparison-time is equal or greater than timestamp
+            if t == timestamp:
+                print(f"EXACT TS: {timestamp}")
+                break
+            if t > timestamp:
+                print(f"REPLACING TS: {timestamp} -> {t}")
+                timestamp = t
+                break
+
+        # add anomaly label column with 1 when time contains an anomaly timestamp and 0 otherwise
+        df['anomaly'] += df['time'].str.match(str(timestamp)).astype(int)
+
+    df[df['anomaly'] > 0] = 1
     print(df['anomaly'].value_counts())
-    print(df['time'])
+    df.to_csv(f"data/kbm_dataset/{file}labeled_4000.csv", index=False)
 
 
 if __name__ == '__main__':
-    # clean_csv_kbm("archive/data/KBM Dataset/abc-WasserWerkeBliestalP1A_birchfft_v10.csv", "wasserwerke-a", sep=',')
 
-    # todo: find nearest timestamp!! (anomaly timestamps are wrong)
-    timestamps = ["22/05/2019  06:39:59"]
-    add_anomaly_data_kbm("data/kbm_dataset/stadtkehl_4000.csv", timestamps=timestamps, clean_timestamps=False)
+    # clean_csv_kbm(path="archive/data/KBM Dataset/New folder/abc-Piaggio/data.csv", name="piaggio", sep=',')
+
+    files = ["stabilus", "stadtkehl", "wasserwerke-a", "wasserwerke-b", "piaggio"]  # "gummipumpe"
+
+    for file in files:
+        print(f"\n{file}")
+        clean_samples_kbm(file)
+        # add_label_kbm(file=file, timestamps=timestamps)
 
     # Resampler(data_path='data/kbm_dataset/pumpe_v3', num_features=5).resample_default()
 
