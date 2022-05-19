@@ -25,6 +25,7 @@ anomalies_bearing = {'test1': [1.000, 0.985, 0.840, 0.665],
                      'test2': [0.710, 0.980, 1.000, 0.900],
                      'test3': [0.980, 0.975, 0.972, 0.972]}
 
+
 class Resampler:
     """
     Resampler class for resampling data to a lower sampling frequency.
@@ -36,7 +37,7 @@ class Resampler:
         self.data_path = data_path
         self.dataset = "kbm" if "kbm" in data_path else "bearing"
 
-    def resample_default(self):
+    def resample_defaults(self):
         # resample data to default sampling sizes
         for resample_size in [10, 30, 100, 300, 1000]:
             self.resample_data(resample_size=resample_size)
@@ -279,10 +280,9 @@ class DataCleanerBearingTest:
 
 
 if __name__ == '__main__':
-
+    pass
     # DataCleanerKBM(file_names=files, data_path="data/kbm_dataset", anomaly_timestamps=anomaly_ts).check_data()
 
-    DataCleanerBearingTest(data_path="data/bearing_dataset/test1", num_features=2).add_label(anomalies_bearing['test1'])
-    DataCleanerBearingTest(data_path="data/bearing_dataset/test2").add_label(anomalies_bearing['test2'])
+
 
     # Resampler(data_path='archive/data/bearing_dataset/test1').resample_data(resample_size=20480)
