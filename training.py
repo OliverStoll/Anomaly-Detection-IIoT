@@ -3,7 +3,6 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import os
-
 from keras.layers import Input, Dense, Flatten, Reshape, LSTM, TimeDistributed, RepeatVector
 from keras.models import Model
 from tensorflow.keras import optimizers
@@ -11,8 +10,8 @@ from keras.regularizers import l2
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 
 from evaluation import evaluate_model_lstm, evaluate_model_fft
-from functionality.callbacks import scheduler
-from functionality.config import c, client_c
+from util.callbacks import scheduler
+from util.config import c, client_c
 
 
 def load_and_normalize_data(data_path, columns):
@@ -81,7 +80,7 @@ def lstm_autoencoder_model(X):
     A function to create a specific autoencoder model. The model is a LSTM-autoencoder with a single hidden layer.
 
     The size of the hidden layer is determined by the number of features in the input.
-    The size of the LSTM layers is dependant on the LAYERS_EXPONENT parameter in the configs.
+    The size of the LSTM layers is dependant on the LAYERS_EXPONENT parameter in the files.
 
     :param X: the input data, which is used to configure the model correctly for the input size
     :return: the initialized model

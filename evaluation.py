@@ -5,7 +5,7 @@ from matplotlib import pyplot as plt
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import mean_squared_error
 
-from functionality.config import c
+from util.config import c
 
 
 def plot_debug(results, loss, val_loss, num_features):

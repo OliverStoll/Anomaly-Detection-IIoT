@@ -1,4 +1,4 @@
-from functionality.config import c
+from util.config import c
 
 
 def scheduler(epoch, lr):
