@@ -34,13 +34,8 @@ class Resampler:
     """
 
     def __init__(self, data_path):
-        self.data_path = data_path
+        self.data_path = data_path.replace("_full", "")
         self.dataset = "kbm" if "kbm" in data_path else "bearing"
-
-    def resample_defaults(self):
-        # resample data to default sampling sizes
-        for resample_size in [10, 30, 100, 300, 1000]:
-            self.resample_data(resample_size=resample_size)
 
     def resample_data(self, resample_size):
         print(f"Resampling {self.data_path} to {resample_size}")
@@ -281,8 +276,3 @@ class DataCleanerBearingTest:
 
 if __name__ == '__main__':
     pass
-    # DataCleanerKBM(file_names=files, data_path="data/kbm_dataset", anomaly_timestamps=anomaly_ts).check_data()
-
-
-
-    # Resampler(data_path='archive/data/bearing_dataset/test1').resample_data(resample_size=20480)
