@@ -11,7 +11,7 @@ from sklearn.preprocessing import MinMaxScaler, StandardScaler
 
 from evaluation import evaluate_model_lstm, evaluate_model_fft
 from util.callbacks import scheduler
-from util.config import c, client_c
+from util.config import c, c_client
 
 
 def load_and_normalize_data(data_path, columns):
@@ -219,7 +219,7 @@ class Training:
 if __name__ == '__main__':
     os.environ['CUDA_VISIBLE_DEVICES'] = '-1'  # disable GPU usage
 
-    trainer = Training(data_path=f"data/{client_c['DATASET_PATH']}_{c.SPLIT}.csv",
-                       data_columns=client_c['DATASET_COLUMNS'])
+    trainer = Training(data_path=f"data/{c_client['DATASET_PATH']}_{c.SPLIT}.csv",
+                       data_columns=c_client['DATASET_COLUMNS'])
     trainer.train_models(epochs=c.EPOCHS)
     trainer.evaluation()

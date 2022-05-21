@@ -5,7 +5,7 @@ from keras.models import load_model
 from training import Training
 from evaluation import evaluate_model_lstm, evaluate_model_fft
 from util.socket_functions import send_msg, recv_msg
-from util.config import c, client_c
+from util.config import c, c_client
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
@@ -56,8 +56,8 @@ if __name__ == '__main__':
     os.environ['CUDA_VISIBLE_DEVICES'] = '-1'  # disable GPU usage
 
     trainer = TrainingWorker(server_ip_port=c.SERVER_IP_PORT,
-                             data_path=f"data/{client_c['DATASET_PATH']}_10.csv",  # todo:fix
-                             data_cols=client_c['DATASET_COLUMNS'],
-                             model_path=client_c['MODEL_PATH'])
+                             data_path=f"data/{c_client['DATASET_PATH']}_10.csv",  # todo:fix
+                             data_cols=c_client['DATASET_COLUMNS'],
+                             model_path=c_client['MODEL_PATH'])
     trainer.run(rounds=c.EPOCHS)
 

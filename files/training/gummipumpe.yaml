@@ -13,10 +13,10 @@ SPLIT: 10
 
 CLIENTS:
   CLIENT_1:
-      DATASET_PATH: data/kbm_dataset/gummipumpe_10.csv
+      DATASET_PATH: data/kbm/gummipumpe_10.csv
       DATASET_COLUMNS: [0, 1, 2, 3]
       MODEL_PATH: model/trainer1
   CLIENT_2:
-      DATASET_PATH: data/kbm_dataset/gummipumpe_10.csv
+      DATASET_PATH: data/kbm/gummipumpe_10.csv
       DATASET_COLUMNS: [0, 1, 2, 3]
       MODEL_PATH: model/trainer2

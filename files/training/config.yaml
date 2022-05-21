@@ -13,6 +13,6 @@ VAL_SPLIT: 0.1
 SPLIT: 10
 
 CLIENT_1:
-    DATASET_PATH: bearing_dataset/bearings_2  # kbm_dataset/piaggio
+    DATASET_PATH: bearing_dataset/bearings_2  # kbm/piaggio
     DATASET_COLUMNS: [0, 1]
     MODEL_PATH: model/trainer1
