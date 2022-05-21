@@ -26,7 +26,7 @@ def load_and_normalize_data(data_path, columns):
     """
 
     # read the data from the csv file
-    df = pd.read_csv(data_path, sep=';', usecols=columns, header=None)
+    df = pd.read_csv(data_path, usecols=columns)
 
     # drop the last rows that are not a full split anymore
     if len(df) % c.SPLIT != 0:
@@ -151,6 +151,8 @@ def fft_autoencoder_model(X):
 class Training:
     def __init__(self, data_path, data_columns):
         self.data_3d, self.data_train_3d = load_and_normalize_data(data_path, data_columns)
+        self.batch_size = c.BATCH_SIZE
+        self.val_split = c.VAL_SPLIT
         self.fft_3d = calculate_fft_from_data(self.data_3d)
         self.fft_train_3d = calculate_fft_from_data(self.data_train_3d)
         self.model_lstm, self.model_fft = self.initialize_models()
@@ -194,14 +196,14 @@ class Training:
         _history_lstm = self.model_lstm.fit(self.data_train_3d,
                                             self.data_train_3d,
                                             epochs=epochs,
-                                            batch_size=c.BATCH_SIZE,
+                                            batch_size=self.batch_size,
                                             callbacks=self.callbacks,
-                                            validation_split=c.VAL_SPLIT).history
+                                            validation_split=self.val_split).history
         _history_fft = self.model_fft.fit(self.fft_train_3d,
                                           self.fft_train_3d,
                                           epochs=epochs,
-                                          batch_size=c.BATCH_SIZE,
-                                          validation_split=c.VAL_SPLIT).history
+                                          batch_size=self.batch_size,
+                                          validation_split=self.val_split).history
 
         self.history_lstm['loss'] += _history_lstm['loss']
         self.history_lstm['val_loss'] += _history_lstm['val_loss']
@@ -210,16 +212,24 @@ class Training:
 
     def evaluation(self):
         """
-        Debug Evaluation function.
+        Evaluate the models seperately.
+
+        This is done by functionality in evaluation.py
         """
-        evaluate_model_lstm(model=self.model_lstm, data_3d=self.data_3d, history=self.history_lstm)
-        evaluate_model_fft(model=self.model_fft, fft_data_3d=self.fft_3d)
+
+        anomaly_scores_lstm = evaluate_model_lstm(model=self.model_lstm, data_3d=self.data_3d, history=self.history_lstm)
+        anomaly_scores_fft = evaluate_model_fft(model=self.model_fft, fft_data_3d=self.fft_3d)
+        # todo: add evaluation of the models in here
+
+        threshold = 0.5
+        # get all indexes where the anomaly score is above the threshold
+        anomaly_indexes_lstm = np.where(anomaly_scores_lstm > threshold)[0]
+        print('Anomaly indexes for LSTM: ', anomaly_indexes_lstm)
 
 
 if __name__ == '__main__':
     os.environ['CUDA_VISIBLE_DEVICES'] = '-1'  # disable GPU usage
 
-    trainer = Training(data_path=f"data/{c_client['DATASET_PATH']}_{c.SPLIT}.csv",
-                       data_columns=c_client['DATASET_COLUMNS'])
-    trainer.train_models(epochs=c.EPOCHS)
+    trainer = Training(data_path=f"data/bearing/experiment-2_10.csv", data_columns=[0])
+    trainer.train_models(epochs=30)
     trainer.evaluation()

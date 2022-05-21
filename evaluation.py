@@ -117,6 +117,7 @@ def evaluate_model_lstm(model, data_3d, history):
     # plot the results
     plot_debug(results=results_df, loss=history['loss'], val_loss=history['val_loss'], num_features=data_2d.shape[1])
 
+    return list_mse
 
 def evaluate_model_fft(model, fft_data_3d, plot_normalized=False):
     """
@@ -139,15 +140,7 @@ def evaluate_model_fft(model, fft_data_3d, plot_normalized=False):
     plt.ylim(0, 5)
     plt.show()
 
-    # normalize mse for multiple features efficiently to find one anomaly score
-    scaler = MinMaxScaler()
-    mse_s = scaler.fit_transform(mse)
-
-    # if requested, plot the normalized mse
-    if plot_normalized:
-        plt.plot(mse_s)
-        plt.title("FFT Autoencoder Anomaly Score (Normalized)")
-        plt.show()
+    return mse
 
 
 class PlotterRaw:
@@ -239,7 +232,7 @@ class PlotterRaw:
 
     def _add_anomaly_list_to_subplot(self, ax, color, anomaly_list):
         for anomaly_data in anomaly_list:
-            if isinstance(anomaly_data, tuple):  # check if anomaly data is tuple or single value
+            if isinstance(anomaly_data, tuple) or isinstance(anomaly_data, list):  # check if anomaly data is tuple or single value
                 # plot vertical area
                 ax.axvspan(anomaly_data[0] * self.x_max, anomaly_data[1] * self.x_max, alpha=0.5, color=color)
             else:
@@ -270,19 +263,30 @@ def get_timestamp_percentiles(path, timestamps):
     return list_percentiles
 
 
-def _plot_kbm():
+def _plot_kbm(ending):
     # iterate over all files in data/kbm
     for file in os.listdir('data/kbm'):
         # plot if file is a csv file
-        ending = '_10.csv'
         if file.endswith(ending):
             PlotterRaw(file_path=f'data/kbm/{file}', sub_experiments=1, features=4,
                        anomalies_real=anomalies_kbm[file.split("/")[-1].replace(ending, "")], ylim=[500, 500, 1500, 50]
                        ).plot_experiment()
 
 
+def _plot_bearing(ending):
+    # iterate over all files in data/bearing
+    for file in os.listdir('data/bearing'):
+        # plot if file is a csv file
+        if file.endswith(ending):
+            # hardcode number of features
+            features = 2 if 'experiment-1' in file else 1
+            PlotterRaw(file_path=f'data/bearing/{file}', sub_experiments=4, features=features,
+                       anomalies_real=anomalies_bearing[file.split("/")[-1].replace(ending, "")], ylim=.5
+                       ).plot_experiment()
+
+
 if __name__ == '__main__':
-    _plot_kbm()
+    _plot_bearing(ending='_10.csv')
 
 
 
