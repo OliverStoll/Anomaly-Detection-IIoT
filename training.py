@@ -9,49 +9,9 @@ from tensorflow.keras import optimizers
 from keras.regularizers import l2
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 
-from evaluation import evaluate_model_lstm, evaluate_model_fft
+from evaluation import *  # evaluate_model_lstm, evaluate_model_fft, find_timestretches_from_indexes
 from util.callbacks import scheduler
 from util.config import c, c_client
-
-
-def load_and_normalize_data(data_path, columns):
-    """
-    Prepare the data for training and evaluation. All features need to be extracted and named.
-
-    The data is normalized and split into training and testing data 80/20.
-
-    :param data_path: file path to the csv data file
-    :param columns: the columns to extract from the csv file
-    :return: the full data, the training data and the 3d array of the training data
-    """
-
-    # read the data from the csv file
-    df = pd.read_csv(data_path, usecols=columns)
-
-    # drop the last rows that are not a full split anymore
-    if len(df) % c.SPLIT != 0:
-        df = df.iloc[:-(len(df) % c.SPLIT)]
-
-    # split the data into training and testing data 80/20 (only for bearing)
-    if 'bearing' in c.CLIENT_1['DATASET_PATH']:
-        split_len = int(len(df) * 0.8) + (c.SPLIT - int(len(df) * 0.8) % c.SPLIT)
-    else:
-        split_len = len(df)
-
-    # split the data frame into multiple lists
-    data = df.iloc[:, :].values
-    train_data = df[:split_len].iloc[:, :].values
-
-    # normalize the data
-    scaler = MinMaxScaler()
-    data = scaler.fit_transform(data)
-    train_data = scaler.transform(train_data)
-
-    # reshape data to 3d arrays with the second value equal to the number of timesteps (SPLIT)
-    data_3d = data.reshape((-1, c.SPLIT, data.shape[1]))
-    train_data_3d = train_data.reshape((-1, c.SPLIT, train_data.shape[1]))
-
-    return data_3d, train_data_3d
 
 
 def calculate_fft_from_data(data_3d):
@@ -94,7 +54,7 @@ def lstm_autoencoder_model(X):
     x = inputs
 
     # create the encoder LSTM layers
-    for i in range(len(c.LAYER_SIZES)-1):
+    for i in range(len(c.LAYER_SIZES) - 1):
         x = LSTM(c.LAYER_SIZES[i], activation='relu', return_sequences=True,
                  kernel_regularizer=l2(1e-7), activity_regularizer=l2(1e-7))(x)
     x = LSTM(c.LAYER_SIZES[-1], activation='relu', return_sequences=False,
@@ -150,15 +110,63 @@ def fft_autoencoder_model(X):
 
 class Training:
     def __init__(self, data_path, data_columns):
-        self.data_3d, self.data_train_3d = load_and_normalize_data(data_path, data_columns)
+        self.data_path = data_path
+        self.dataset_name = data_path.split('/')[-2]
+        self.experiment_name = data_path.split('/')[-1]
+        self.sub_experiment_index = int(data_columns[0] / len(data_columns))
+        self.data_columns = data_columns
+        self.split_size = c.SPLIT
         self.batch_size = c.BATCH_SIZE
         self.val_split = c.VAL_SPLIT
+        self.train_split = c.TRAIN_SPLIT
+        self.data_3d, self.data_train_3d = self.load_and_normalize_data()
+        self.data_2d = self.data_3d.reshape((-1, self.data_3d.shape[2]))
         self.fft_3d = calculate_fft_from_data(self.data_3d)
+        self.fft_2d = self.fft_3d.reshape((-1, self.fft_3d.shape[2]))
         self.fft_train_3d = calculate_fft_from_data(self.data_train_3d)
         self.model_lstm, self.model_fft = self.initialize_models()
         self.history_lstm = {'loss': [], 'val_loss': []}
         self.history_fft = {'loss': [], 'val_loss': []}
+        self.mse_lstm = []
+        self.mse_fft = []
+        self.data_pred_2d = []
+        self.fft_pred_2d = []
         self.callbacks = [tf.keras.callbacks.LearningRateScheduler(scheduler)]  # initialize the learning rate scheduler
+
+    def load_and_normalize_data(self):
+        """
+        Prepare the data for training and evaluation. All features need to be extracted and named.
+
+        The data is normalized and possibly split into training and testing data 80/20.
+
+        :return: the full data, the training data and the 3d array of the training data
+        """
+
+        # read the data from the csv file
+        df = pd.read_csv(f"{self.data_path}_{self.split_size}.csv", usecols=self.data_columns)
+
+        # drop the last rows that are not a full split anymore
+        if len(df) % self.split_size != 0:
+            df = df.iloc[:-(len(df) % self.split_size)]
+
+        # split percentage of data as training data, if specified as < 1
+        split_len = int(len(df) * self.train_split) \
+                    + (self.split_size - int(len(df) * self.train_split) % self.split_size)
+
+        # split the data frame into multiple lists
+        data = df.iloc[:, :].values
+        train_data = df[:split_len].iloc[:, :].values
+
+        # normalize the data
+        scaler = MinMaxScaler()
+        data = scaler.fit_transform(data)
+        train_data = scaler.transform(train_data)
+
+        # reshape data to 3d arrays with the second value equal to the number of timesteps (SPLIT)
+        data_3d = data.reshape((-1, self.split_size, data.shape[1]))
+        train_data_3d = train_data.reshape((-1, self.split_size, train_data.shape[1]))
+
+        return data_3d, train_data_3d
 
     def initialize_models(self):
         """
@@ -166,7 +174,6 @@ class Training:
 
         The training data is split into training and validation data.
 
-        :param train_data_3d: the training data, formatted as a 3D array (batch, timesteps, features)
         :return: the initialized model
         """
 
@@ -183,6 +190,29 @@ class Training:
         model_fft.compile(optimizer=opt_fft, loss='mse')
 
         return model_lstm, model_fft
+
+    def load_models(self, dir_path):
+        """
+        Load the models from the specified directory.
+
+        :param dir_path: the directory path to the models
+        :return: the model and the fft model
+        """
+
+        # load the models
+        self.model_lstm = tf.keras.models.load_model(f"{dir_path}/lstm_model.h5")
+        self.model_fft = tf.keras.models.load_model(f"{dir_path}/fft_model.h5")
+
+    def save_models(self, dir_path):
+        """
+        Save the models to the specified directory.
+
+        :param dir_path: the directory path to the models
+        """
+
+        # save the models
+        self.model_lstm.save(f"{dir_path}/lstm_model.h5")
+        self.model_fft.save(f"{dir_path}/fft_model.h5")
 
     def train_models(self, epochs=1):
         """
@@ -210,26 +240,65 @@ class Training:
         self.history_fft['loss'] += _history_fft['loss']
         self.history_fft['val_loss'] += _history_fft['val_loss']
 
-    def evaluation(self):
+    def calculate_anomaly_scores(self):
+        self.data_pred_2d = self.model_lstm.predict(self.data_3d).reshape((-1, self.data_3d.shape[2]))
+        self.fft_pred_2d = self.model_fft.predict(self.fft_3d).reshape((-1, self.fft_3d.shape[2]))
+        self.mse_lstm = ((self.data_2d - self.data_pred_2d) ** 2).mean(axis=1)
+        self.mse_fft = ((self.fft_2d - self.fft_pred_2d) ** 2)
+
+    def evaluation(self, show_infotable=False, show_anomaly_scores=True, show_experiment=True):
         """
         Evaluate the models seperately.
 
         This is done by functionality in evaluation.py
         """
 
-        anomaly_scores_lstm = evaluate_model_lstm(model=self.model_lstm, data_3d=self.data_3d, history=self.history_lstm)
-        anomaly_scores_fft = evaluate_model_fft(model=self.model_fft, fft_data_3d=self.fft_3d)
-        # todo: add evaluation of the models in here
+        # evaluate the models seperately
+        if show_infotable:
+            plot_infotable(trainer=self)
 
-        threshold = 0.5
-        # get all indexes where the anomaly score is above the threshold
-        anomaly_indexes_lstm = np.where(anomaly_scores_lstm > threshold)[0]
-        print('Anomaly indexes for LSTM: ', anomaly_indexes_lstm)
+        if show_anomaly_scores:
+            plot_anomaly_scores(mse_lstm=self.mse_lstm, mse_fft=self.mse_fft)
+
+        # get all indexes where the anomaly score is above the threshold, and from that the corresponding sample indexes
+        anomaly_indexes_lstm = np.where(self.mse_lstm > c.THRESHOLD_LSTM)[0]
+        anomaly_sample_indexes_lstm = np.unique(anomaly_indexes_lstm // self.split_size)
+        anomaly_times_lstm = find_timestretches_from_indexes(indexes=anomaly_sample_indexes_lstm,
+                                                             max_index=self.data_3d.shape[0])
+
+        anomaly_indexes_fft = np.where(self.mse_fft > c.THRESHOLD_FFT)[0]
+        anomaly_indexes_fft = anomaly_indexes_fft // self.split_size
+        anomaly_indexes_fft = np.unique(anomaly_indexes_fft)  # remove duplicates
+
+        anomaly_times_fft = find_timestretches_from_indexes(indexes=anomaly_indexes_fft,
+                                                            max_index=self.data_3d.shape[0])
+
+        plotter = ExperimentPlotter(file_path=f"{self.data_path}_{self.split_size}.csv",
+                                    sub_experiment_index=self.sub_experiment_index,
+                                    ylim=c.PLOT_YLIM,
+                                    features=len(self.data_columns),
+                                    anomalies_real=anomalies[self.dataset_name][self.experiment_name],
+                                    anomalies_pred_lstm=anomaly_times_lstm,
+                                    anomalies_pred_fft=anomaly_times_fft)
+
+        if show_experiment:
+            plotter.plot_experiment()
 
 
 if __name__ == '__main__':
     os.environ['CUDA_VISIBLE_DEVICES'] = '-1'  # disable GPU usage
 
-    trainer = Training(data_path=f"data/bearing/experiment-2_10.csv", data_columns=[0])
-    trainer.train_models(epochs=30)
-    trainer.evaluation()
+    # define the experiment for testing
+    train = True
+    experiment, data_columns = "bearing/experiment-2", [0]
+
+    # initialize the trainer and train/infere the model
+    trainer = Training(data_path=f"data/{experiment}", data_columns=data_columns)
+    if train:
+        trainer.train_models(epochs=c.EPOCHS)
+        trainer.save_models(dir_path=f"models/{experiment}/{data_columns}")
+    else:
+        trainer.load_models(dir_path=f"models/{experiment}/{data_columns}")
+
+    trainer.calculate_anomaly_scores()
+    trainer.evaluation(show_anomaly_scores=train)

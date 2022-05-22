@@ -13,7 +13,7 @@ if config_file is None:
     client = 'CLIENT_1'
 
 # import the config file
-c = yaml.safe_load(open(f"files/training/{config_file}"))
+c = yaml.safe_load(open(f"files/{config_file}"))
 c_client = c[client]
 c = SimpleNamespace(**c)
 

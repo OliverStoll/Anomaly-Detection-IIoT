@@ -137,7 +137,7 @@ class DataPipeBearingTest:
 
 
 class Resampler:
-    def __init__(self, directory_path, new_sampling_rate, feature_cols_tuple=None):
+    def __init__(self, directory_path, new_sampling_rate, feature_cols_tuple):
         self.directory_path = directory_path
         self.new_sampling_rate = new_sampling_rate
         self.feature_cols_tuple = feature_cols_tuple
@@ -155,7 +155,7 @@ class Resampler:
         # iterate over all files in folder
         for file in os.listdir(self.directory_path):
             if file.endswith("_full.csv"):
-                print(f"Resampling {file}")
+                print(f"Resampling {file} Rate: {self.new_sampling_rate}")
                 self.resample_csv(file_path=f"{self.directory_path}/{file.replace('_full.csv', '')}")
 
     def resample_csv(self, file_path):
@@ -215,9 +215,10 @@ class Resampler:
 
 
 def _resample_all_to_defaults():
-    for i in [10, 30, 100, 300]:
-        Resampler(directory_path='data/kbm', new_sampling_rate=i, feature_cols_tuple=(2, 6)).resample_all_csv_in_directory()
-        Resampler(directory_path='data/bearing', new_sampling_rate=i).resample_all_csv_in_directory()
+    for i in [30, 100, 512]:
+        # Resampler(directory_path='data/kbm', new_sampling_rate=i, feature_cols_tuple=(2, 6)).resample_all_csv_in_directory()
+        Resampler(directory_path='data/bearing', new_sampling_rate=i, feature_cols_tuple=(0, 4)
+                  ).resample_all_csv_in_directory()
 
 
 if __name__ == '__main__':
