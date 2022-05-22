@@ -47,7 +47,7 @@ def lstm_autoencoder_model(X):
     """
 
     # print all relevant information
-    print(f'CREATE MODEL - INPUT: {X.shape} - LAYERS: {c.LAYER_SIZES}')
+    # print(f'CREATE LSTM MODEL - LAYERS: {c.LAYER_SIZES}')
 
     # create the input layer
     inputs = Input(shape=(X.shape[1], X.shape[2]))
@@ -83,7 +83,7 @@ def fft_autoencoder_model(X):
     """
 
     # print all relevant information
-    print(f'CREATE FFT MODEL - INPUT: {X.shape}')
+    # print(f'CREATE FFT MODEL - INPUT: {X.shape}')
 
     # create the input layer
     inputs = Input(shape=(X.shape[1], X.shape[2]))
@@ -119,6 +119,7 @@ class Training:
         self.batch_size = c.BATCH_SIZE
         self.val_split = c.VAL_SPLIT
         self.train_split = c.TRAIN_SPLIT
+        self.labels = anomalies[self.dataset_name][self.experiment_name]['bearing-0']
         self.data_3d, self.data_train_3d = self.load_and_normalize_data()
         self.data_2d = self.data_3d.reshape((-1, self.data_3d.shape[2]))
         self.fft_3d = calculate_fft_from_data(self.data_3d)
@@ -246,6 +247,36 @@ class Training:
         self.mse_lstm = ((self.data_2d - self.data_pred_2d) ** 2).mean(axis=1)
         self.mse_fft = ((self.fft_2d - self.fft_pred_2d) ** 2)
 
+    def calculate_auc(self, threshold_factors):
+
+        all_anomaly_indexes = []
+        auc_coords = []
+        fps = []
+        tps = []
+        for threshold_factor in threshold_factors:
+            anomaly_indexes_lstm = np.where(self.mse_lstm > c.THRESHOLD_LSTM * threshold_factor)[0]
+            anomaly_sample_indexes_lstm = np.unique(anomaly_indexes_lstm // self.split_size)
+            all_anomaly_indexes.append(anomaly_sample_indexes_lstm)
+
+        for indexes in all_anomaly_indexes:
+            tp, fp, fn, tn = get_tp_fp_fn_tn_from_indexes(pred_indexes=indexes,
+                                                          max_index=self.data_3d.shape[0],
+                                                          labels=self.labels)
+            fps.append(fp)
+            tps.append(tp)
+        p = tp + fn
+        n = fp + tn
+
+        # divide all the tps and fps by p and n
+        tps = np.array(tps) / p
+        fps = np.array(fps) / n
+
+        # plot the ROC curve from the coordinates
+        auc = np.trapz(y=tps, x=fps)
+
+        return fps, tps, auc
+
+
     def evaluation(self, show_infotable=False, show_anomaly_scores=True, show_experiment=True):
         """
         Evaluate the models seperately.
@@ -263,15 +294,14 @@ class Training:
         # get all indexes where the anomaly score is above the threshold, and from that the corresponding sample indexes
         anomaly_indexes_lstm = np.where(self.mse_lstm > c.THRESHOLD_LSTM)[0]
         anomaly_sample_indexes_lstm = np.unique(anomaly_indexes_lstm // self.split_size)
-        anomaly_times_lstm = find_timestretches_from_indexes(indexes=anomaly_sample_indexes_lstm,
-                                                             max_index=self.data_3d.shape[0])
+        anomaly_times_lstm = find_timetuples_from_indexes(indexes=anomaly_sample_indexes_lstm,
+                                                          max_index=self.data_3d.shape[0])
 
         anomaly_indexes_fft = np.where(self.mse_fft > c.THRESHOLD_FFT)[0]
-        anomaly_indexes_fft = anomaly_indexes_fft // self.split_size
-        anomaly_indexes_fft = np.unique(anomaly_indexes_fft)  # remove duplicates
+        anomaly_sample_indexes_fft = np.unique(anomaly_indexes_fft // self.split_size)
 
-        anomaly_times_fft = find_timestretches_from_indexes(indexes=anomaly_indexes_fft,
-                                                            max_index=self.data_3d.shape[0])
+        anomaly_times_fft = find_timetuples_from_indexes(indexes=anomaly_sample_indexes_fft,
+                                                         max_index=self.data_3d.shape[0])
 
         plotter = ExperimentPlotter(file_path=f"{self.data_path}_{self.split_size}.csv",
                                     sub_experiment_index=self.sub_experiment_index,
@@ -284,12 +314,25 @@ class Training:
         if show_experiment:
             plotter.plot_experiment()
 
+        tp, fp, fn, tn = get_tp_fp_fn_tn_from_indexes(pred_indexes=anomaly_sample_indexes_lstm,
+                                                      max_index=self.data_3d.shape[0],
+                                                      labels=self.labels)
+
+        precision, recall, f1 = calculate_precision_recall_f1(tp=tp, fp=fp, fn=fn, tn=tn)
+        print(f"Precision: {precision: .3f}")
+        print(f"Recall: {recall: .3f}")
+        print(f"F1: {f1: .3f}")
+
+        fps, tps, auc = self.calculate_auc(threshold_factors=np.arange(2, 0, -0.005))
+        print(f"AUC: {auc: .3f}")
+        plot_roc(fps=fps, tps=tps, auc=auc)
+
 
 if __name__ == '__main__':
     os.environ['CUDA_VISIBLE_DEVICES'] = '-1'  # disable GPU usage
 
     # define the experiment for testing
-    train = True
+    train = False
     experiment, data_columns = "bearing/experiment-2", [0]
 
     # initialize the trainer and train/infere the model

@@ -105,6 +105,24 @@ def plot_anomaly_scores(mse_lstm, mse_fft):
     fig.show()
 
 
+def plot_roc(fps, tps, auc):
+
+    fps = np.insert(fps, 0, 0)
+    tps = np.insert(tps, 0, 0)
+
+    plt.figure(figsize=(15, 10))
+    plt.plot(fps, tps, label='ROC curve')
+    plt.plot([0, 1], [0, 1], 'k--')
+    plt.xlim([-0.01, 1.0])
+    plt.ylim([0.0, 1.01])
+    plt.xlabel('False Positive Rate')
+    plt.ylabel('True Positive Rate')
+    plt.suptitle('ROC Curve', fontsize=20)
+    plt.title(f'AUC={auc:.4f}')
+    plt.legend(loc="upper right")
+    plt.show()
+
+
 class ExperimentPlotter:
     """
     Class to plot the raw data and anomalies for a given experiment.
@@ -209,9 +227,9 @@ class ExperimentPlotter:
             self._add_anomalies_to_subplot(ax=ax, color='green', anomaly_list=self.anomalies_pred_fft, minmax=(0.35, 0.625))
 
         # plot the training split as vertical line, if training data was split
-        if c.TRAIN_SPLIT < 1:
+        if c.PLOT_SPLITS:
             ax.axvline(x=c.TRAIN_SPLIT * self.x_max, color='black', alpha=0.5, linestyle='-')
-        ax.axvline(x=c.TRAIN_SPLIT * (1-c.VAL_SPLIT) * self.x_max, color='black', alpha=0.5, linestyle='--')
+            ax.axvline(x=c.TRAIN_SPLIT * (1-c.VAL_SPLIT) * self.x_max, color='black', alpha=0.5, linestyle='--')
 
         self.fig.add_subplot(ax)
 
@@ -228,11 +246,16 @@ class ExperimentPlotter:
     def _add_legend_to_figure(self):
         custom_lines = [Line2D([0], [0], color='purple', lw=4),
                         Line2D([0], [0], color='green', lw=4),
-                        Line2D([0], [0], color='red', lw=4),
-                        Line2D([0], [0], color='black', linestyle='-', lw=4),
+                        Line2D([0], [0], color='red', lw=4)]
+        split_lines = [Line2D([0], [0], color='black', linestyle='-', lw=4),
                         Line2D([0], [0], color='black', linestyle='--', lw=4)]
+        titles = ['Anomalies LSTM', 'Anomalies FFT', 'Labeled']
+        split_titles = ['Training Split', 'Validation Split']
+        if c.PLOT_SPLITS:
+            custom_lines += split_lines
+            titles += split_titles
         leg = self.fig.legend(custom_lines,
-                              ['Anomalies LSTM', 'Anomalies FFT', 'Labeled', 'Training Split', 'Validation Split'],
+                              titles,
                               loc='upper right')
         for lh in leg.legendHandles:
             lh.set_alpha(0.5)
@@ -283,12 +306,13 @@ def get_timestamp_percentiles(path, timestamps):
     return list_percentiles
 
 
-def find_timestretches_from_indexes(indexes, max_index=None):
+def find_timetuples_from_indexes(indexes, max_index=None):
     """
     Function that checks all indexes if they are adjacent and returns a list of timespan tuples.
 
     :param indexes: list of single indexes
     """
+
     timespans_list = []
     old_index = indexes[0]
     current_list = [old_index]
@@ -309,6 +333,60 @@ def find_timestretches_from_indexes(indexes, max_index=None):
         tuples_list = [[tuple[0] / max_index, tuple[1] / max_index] for tuple in tuples_list]
 
     return tuples_list
+
+
+def get_tp_fp_fn_tn_from_indexes(pred_indexes, max_index, labels):
+
+    # prepare lists of all possible outcomes for an index
+    true_positives = []
+    true_negatives = []
+    false_positive = []
+    false_negative = []
+
+    # get all indexes that are labeled as anomaly
+    label_indexes = []
+    for index in range(max_index):
+        for label in labels:
+            index_percentage = index / max_index
+            if label[0] <= index_percentage <= label[1]:
+                label_indexes.append(index)
+                break
+
+    # check the predicted indexes against the labels
+    for index in pred_indexes:
+        if index in label_indexes:
+            true_positives.append(index)
+        else:
+            false_positive.append(index)
+
+    # check the labels against the predicted indexes
+    for index in label_indexes:
+        if index not in pred_indexes:
+            false_negative.append(index)
+
+    # check all indexes against labels and predicted indexes
+    for index in range(max_index):
+        if index not in label_indexes and index not in pred_indexes:
+            true_negatives.append(index)
+
+    tp = len(true_positives)
+    fp = len(false_positive)
+    fn = len(false_negative)
+    tn = len(true_negatives)
+
+    return tp, fp, fn, tn
+
+
+def calculate_precision_recall_f1(tp, fp, fn, tn):
+    """
+    Function that calculates the precision, recall and f1 score.
+    """
+
+    precision = tp / (tp + fp)
+    recall = tp / (tp + fn)
+    f1 = 2 * precision * recall / (precision + recall)
+
+    return precision, recall, f1
 
 
 if __name__ == '__main__':
