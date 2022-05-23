@@ -101,29 +101,60 @@ def plot_anomaly_scores(mse_lstm, mse_fft):
     ax[1].axhline(y=c.THRESHOLD_FFT, color='r', linestyle='-')  # plot horizontal line at threshold
 
     # show the plot
-    plt.suptitle("Autoencoder Anomaly Scores", fontsize=20)
+    plt.suptitle("Anomaly Scores", fontsize=20)
     fig.show()
 
 
-def plot_roc(fps, tps, auc):
-
-    fps = np.insert(fps, 0, 0)
-    tps = np.insert(tps, 0, 0)
-
+def plot_losses(history_lstm, history_fft, ylim):
+    print(ylim)
     plt.figure(figsize=(15, 10))
-    plt.plot(fps, tps, label='ROC curve')
-    plt.plot([0, 1], [0, 1], 'k--')
-    plt.xlim([-0.01, 1.0])
-    plt.ylim([0.0, 1.01])
-    plt.xlabel('False Positive Rate')
-    plt.ylabel('True Positive Rate')
-    plt.suptitle('ROC Curve', fontsize=20)
-    plt.title(f'AUC={auc:.4f}')
-    plt.legend(loc="upper right")
+    plt.subplot(2, 1, 1)
+    plt.ylim([0, ylim])
+    plt.plot(history_lstm['loss'], label='Loss')
+    plt.plot(history_lstm['val_loss'], label='Val_Loss')
+    plt.title("LSTM Autoencoder Loss")
+    plt.legend()
+    plt.subplot(2, 1, 2)
+    plt.ylim([0, ylim])
+    plt.plot(history_fft['loss'], label='Loss')
+    plt.plot(history_fft['val_loss'], label='Val_Loss')
+    plt.title("FFT Autoencoder Loss")
+    plt.legend()
+    plt.suptitle("Losses", fontsize=20)
     plt.show()
 
 
-class ExperimentPlotter:
+class RocPlotter:
+    def __init__(self):
+        self.fig = plt.figure(figsize=(15, 10))
+        self.fig.suptitle("ROC Curve", fontsize=20)
+        self.subplot_x = 2
+        self.index = 1
+
+    def show(self):
+        self.fig.show()
+
+    def plot_single_roc(self, fps, tps, auc, f1_max):
+
+        ax = self.fig.add_subplot(1, self.subplot_x, self.index)
+        self.index += 1
+        ax.plot(fps[f1_max[1]], tps[f1_max[1]], 'ro', label='Max F1 Score')
+
+        fps = np.insert(fps, 0, 0)
+        tps = np.insert(tps, 0, 0)
+
+        ax.plot(fps, tps, label='ROC curve')
+        ax.plot([0, 1], [0, 1], 'k--')
+        ax.set_xlim([-0.01, 1.0])
+        ax.set_ylim([0.0, 1.01])
+        ax.set_xlabel('False Positive Rate')
+        ax.set_ylabel('True Positive Rate')
+        ax.set_title(f'AUC={auc:.4f}   (F1={f1_max[0]:.4f})', fontsize=15)
+        ax.legend(loc="upper right")
+        return ax
+
+
+class PredictionsPlotter:
     """
     Class to plot the raw data and anomalies for a given experiment.
 
@@ -173,7 +204,7 @@ class ExperimentPlotter:
                 self._add_single_subplot(inner=inner, sub_experiment=sub_experiment, index=index)
 
         # plot title and show the figure
-        self.fig.suptitle(f"Raw Vibration Data: {self.file_path.split('/')[-1]}", fontsize=20)
+        self.fig.suptitle(f"Predictions: {self.file_path.split('/')[-1].replace('.csv', '')}", fontsize=20)
         self._add_legend_to_figure()
         self.fig.show()
 
@@ -266,9 +297,9 @@ def _plot_all_kbm(ending):
     for file in os.listdir('data/kbm'):
         # plot if file is a csv file
         if file.endswith(ending):
-            ExperimentPlotter(file_path=f'data/kbm/{file}', sub_plots=1, features=4,
-                              anomalies_real=anomalies['kbm'][file.split("/")[-1].replace(ending, "")], ylim=[500, 500, 1500, 50]
-                              ).plot_experiment()
+            PredictionsPlotter(file_path=f'data/kbm/{file}', sub_plots=1, features=4,
+                               anomalies_real=anomalies['kbm'][file.split("/")[-1].replace(ending, "")], ylim=[500, 500, 1500, 50]
+                               ).plot_experiment()
 
 
 def _plot_all_bearing(ending):
@@ -278,120 +309,15 @@ def _plot_all_bearing(ending):
         if file.endswith(ending):
             # hardcode number of features
             features = 2 if 'experiment-1' in file else 1
-            ExperimentPlotter(file_path=f'data/bearing/{file}', sub_plots=4, features=features,
-                              anomalies_real=anomalies['bearing'][file.split("/")[-1].replace(ending, "")], ylim=.5
-                              ).plot_experiment()
+            PredictionsPlotter(file_path=f'data/bearing/{file}', sub_plots=4, features=features,
+                               anomalies_real=anomalies['bearing'][file.split("/")[-1].replace(ending, "")], ylim=.5
+                               ).plot_experiment()
 
-
-def get_timestamp_percentiles(path, timestamps):
-    """
-    Function that returns the index of the timestamp in the given file.
-    """
-
-    list_percentiles = []
-    for timestamp in timestamps:
-        # convert timestamp to datetime object if needed
-        try:  # normal timestamp
-            timestamp = datetime.strptime(timestamp, '%Y-%m-%d %H:%M:%S')
-        except:
-            timestamp = datetime.strptime(timestamp, '%d/%m/%Y  %H:%M:%S')
-
-        df = pd.read_csv(path)
-        time_series = df['time_sec']
-
-        # find first index where timestamp is greater than the time_series
-        index = time_series.searchsorted(str(timestamp))
-        max = len(time_series)
-        list_percentiles.append(index / max)
-    return list_percentiles
-
-
-def find_timetuples_from_indexes(indexes, max_index=None):
-    """
-    Function that checks all indexes if they are adjacent and returns a list of timespan tuples.
-
-    :param indexes: list of single indexes
-    """
-
-    timespans_list = []
-    old_index = indexes[0]
-    current_list = [old_index]
-    for i in range(1, len(indexes) - 1):
-        if indexes[i] - old_index == 1:
-            current_list.append(indexes[i])
-        else:
-            timespans_list.append(current_list)
-            current_list = [indexes[i]]
-        old_index = indexes[i]
-    timespans_list.append(current_list)
-
-    # get the start and end of the timespans
-    tuples_list = [[timespan[0], timespan[-1] + 1] for timespan in timespans_list]
-
-    # divide all tuples by the max index to get the percentage
-    if max_index:
-        tuples_list = [[tuple[0] / max_index, tuple[1] / max_index] for tuple in tuples_list]
-
-    return tuples_list
-
-
-def get_tp_fp_fn_tn_from_indexes(pred_indexes, max_index, labels):
-
-    # prepare lists of all possible outcomes for an index
-    true_positives = []
-    true_negatives = []
-    false_positive = []
-    false_negative = []
-
-    # get all indexes that are labeled as anomaly
-    label_indexes = []
-    for index in range(max_index):
-        for label in labels:
-            index_percentage = index / max_index
-            if label[0] <= index_percentage <= label[1]:
-                label_indexes.append(index)
-                break
-
-    # check the predicted indexes against the labels
-    for index in pred_indexes:
-        if index in label_indexes:
-            true_positives.append(index)
-        else:
-            false_positive.append(index)
-
-    # check the labels against the predicted indexes
-    for index in label_indexes:
-        if index not in pred_indexes:
-            false_negative.append(index)
-
-    # check all indexes against labels and predicted indexes
-    for index in range(max_index):
-        if index not in label_indexes and index not in pred_indexes:
-            true_negatives.append(index)
-
-    tp = len(true_positives)
-    fp = len(false_positive)
-    fn = len(false_negative)
-    tn = len(true_negatives)
-
-    return tp, fp, fn, tn
-
-
-def calculate_precision_recall_f1(tp, fp, fn, tn):
-    """
-    Function that calculates the precision, recall and f1 score.
-    """
-
-    precision = tp / (tp + fp)
-    recall = tp / (tp + fn)
-    f1 = 2 * precision * recall / (precision + recall)
-
-    return precision, recall, f1
 
 
 if __name__ == '__main__':
-    plotter = ExperimentPlotter(file_path=f"data/bearing/experiment-2_10.csv", sub_plots=1, sub_experiment_index=1,
-                                features=1, ylim=.3, anomalies_real=anomalies['bearing']['experiment-2'])
+    plotter = PredictionsPlotter(file_path=f"data/bearing/experiment-2_10.csv", sub_plots=1, sub_experiment_index=1,
+                                 features=1, ylim=.3, anomalies_real=anomalies['bearing']['experiment-2'])
     plotter.plot_experiment()
     #_plot_bearing(ending='_10.csv')
     #_plot_kbm(ending='_10.csv')

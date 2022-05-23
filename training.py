@@ -10,6 +10,7 @@ from keras.regularizers import l2
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 
 from evaluation import *  # evaluate_model_lstm, evaluate_model_fft, find_timestretches_from_indexes
+from util.calculations import *
 from util.callbacks import scheduler
 from util.config import c, c_client
 
@@ -247,21 +248,25 @@ class Training:
         self.mse_lstm = ((self.data_2d - self.data_pred_2d) ** 2).mean(axis=1)
         self.mse_fft = ((self.fft_2d - self.fft_pred_2d) ** 2)
 
-    def calculate_auc(self, threshold_factors):
+    def calculate_auc(self, mse, threshold, threshold_factors):
 
         all_anomaly_indexes = []
         auc_coords = []
         fps = []
         tps = []
+        f1_max = (0, 0)
         for threshold_factor in threshold_factors:
-            anomaly_indexes_lstm = np.where(self.mse_lstm > c.THRESHOLD_LSTM * threshold_factor)[0]
-            anomaly_sample_indexes_lstm = np.unique(anomaly_indexes_lstm // self.split_size)
-            all_anomaly_indexes.append(anomaly_sample_indexes_lstm)
+            anomaly_indexes = np.where(mse > threshold * threshold_factor)[0]
+            anomaly_sample_indexes = np.unique(anomaly_indexes // self.split_size)
+            all_anomaly_indexes.append(anomaly_sample_indexes)
 
-        for indexes in all_anomaly_indexes:
+        for i, indexes in enumerate(all_anomaly_indexes):
             tp, fp, fn, tn = get_tp_fp_fn_tn_from_indexes(pred_indexes=indexes,
                                                           max_index=self.data_3d.shape[0],
                                                           labels=self.labels)
+            precision, recall, f1 = calculate_precision_recall_f1(tp=tp, fp=fp, fn=fn, tn=tn)
+            if f1 > f1_max[0]:
+                f1_max = (f1, i)
             fps.append(fp)
             tps.append(tp)
         p = tp + fn
@@ -274,74 +279,78 @@ class Training:
         # plot the ROC curve from the coordinates
         auc = np.trapz(y=tps, x=fps)
 
-        return fps, tps, auc
+        return fps, tps, auc, f1_max
 
-
-    def evaluation(self, show_infotable=False, show_anomaly_scores=True, show_experiment=True):
+    def evaluation(self, show_infotable=False, show_anom_scores=False, show_preds=False, show_roc=False):
         """
         Evaluate the models seperately.
 
         This is done by functionality in evaluation.py
         """
 
+        # plot losses
+        plot_losses(history_lstm=self.history_lstm, history_fft=self.history_fft, ylim=0.002)
+
         # evaluate the models seperately
         if show_infotable:
             plot_infotable(trainer=self)
 
-        if show_anomaly_scores:
+        if show_anom_scores:
             plot_anomaly_scores(mse_lstm=self.mse_lstm, mse_fft=self.mse_fft)
 
-        # get all indexes where the anomaly score is above the threshold, and from that the corresponding sample indexes
-        anomaly_indexes_lstm = np.where(self.mse_lstm > c.THRESHOLD_LSTM)[0]
-        anomaly_sample_indexes_lstm = np.unique(anomaly_indexes_lstm // self.split_size)
-        anomaly_times_lstm = find_timetuples_from_indexes(indexes=anomaly_sample_indexes_lstm,
-                                                          max_index=self.data_3d.shape[0])
+        # plot the ROC curve and calculate optimal thresholds by checking many possible
+        mses = [self.mse_lstm, self.mse_fft]
+        thresholds = [c.THRESHOLD_LSTM, c.THRESHOLD_FFT]
 
-        anomaly_indexes_fft = np.where(self.mse_fft > c.THRESHOLD_FFT)[0]
-        anomaly_sample_indexes_fft = np.unique(anomaly_indexes_fft // self.split_size)
+        print("\nCalculating AUC...")
+        roc_plotter = RocPlotter()
+        for i in range(2):
+            threshold_factors = np.arange(2, 0, -0.005)
+            fps, tps, auc, f1_max = self.calculate_auc(mse=mses[i],
+                                                       threshold=thresholds[i],
+                                                       threshold_factors=threshold_factors)
+            threshold = round(threshold_factors[f1_max[1]], 6)
+            thresholds[i] = threshold * thresholds[i]
+            roc_plotter.plot_single_roc(fps=fps, tps=tps, auc=auc, f1_max=f1_max)
+        print(f"Thresholds: {thresholds}")
+        if show_roc:
+            roc_plotter.show()
 
-        anomaly_times_fft = find_timetuples_from_indexes(indexes=anomaly_sample_indexes_fft,
+        # get all time-periods where the anomaly score is above the threshold
+        both_anomaly_times = []
+        for i in range(2):
+            anomaly_indexes = np.where(mses[i] > thresholds[i])[0]
+            anomaly_sample_indexes = np.unique(anomaly_indexes // self.split_size)
+            anomaly_times = find_timetuples_from_indexes(indexes=anomaly_sample_indexes,
                                                          max_index=self.data_3d.shape[0])
+            both_anomaly_times.append(anomaly_times)
 
-        plotter = ExperimentPlotter(file_path=f"{self.data_path}_{self.split_size}.csv",
-                                    sub_experiment_index=self.sub_experiment_index,
-                                    ylim=c.PLOT_YLIM,
-                                    features=len(self.data_columns),
-                                    anomalies_real=anomalies[self.dataset_name][self.experiment_name],
-                                    anomalies_pred_lstm=anomaly_times_lstm,
-                                    anomalies_pred_fft=anomaly_times_fft)
-
-        if show_experiment:
-            plotter.plot_experiment()
-
-        tp, fp, fn, tn = get_tp_fp_fn_tn_from_indexes(pred_indexes=anomaly_sample_indexes_lstm,
-                                                      max_index=self.data_3d.shape[0],
-                                                      labels=self.labels)
-
-        precision, recall, f1 = calculate_precision_recall_f1(tp=tp, fp=fp, fn=fn, tn=tn)
-        print(f"Precision: {precision: .3f}")
-        print(f"Recall: {recall: .3f}")
-        print(f"F1: {f1: .3f}")
-
-        fps, tps, auc = self.calculate_auc(threshold_factors=np.arange(2, 0, -0.005))
-        print(f"AUC: {auc: .3f}")
-        plot_roc(fps=fps, tps=tps, auc=auc)
+        if show_preds:
+            PredictionsPlotter(file_path=f"{self.data_path}_{self.split_size}.csv",
+                               sub_experiment_index=self.sub_experiment_index,
+                               ylim=c.PLOT_YLIM,
+                               features=len(self.data_columns),
+                               anomalies_real=anomalies[self.dataset_name][self.experiment_name],
+                               anomalies_pred_lstm=both_anomaly_times[0],
+                               anomalies_pred_fft=both_anomaly_times[1]
+                               ).plot_experiment()
 
 
 if __name__ == '__main__':
     os.environ['CUDA_VISIBLE_DEVICES'] = '-1'  # disable GPU usage
 
     # define the experiment for testing
-    train = False
-    experiment, data_columns = "bearing/experiment-2", [0]
+    train = True
+    # experiment, data_columns = "bearing/experiment-2", [0]
+    dataset_path, data_columns, model_path = c.CLIENT_1['DATASET_PATH'], c.CLIENT_1['DATASET_COLUMNS'], c.CLIENT_1['MODEL_PATH']
 
     # initialize the trainer and train/infere the model
-    trainer = Training(data_path=f"data/{experiment}", data_columns=data_columns)
+    trainer = Training(data_path=dataset_path, data_columns=data_columns)
     if train:
         trainer.train_models(epochs=c.EPOCHS)
-        trainer.save_models(dir_path=f"models/{experiment}/{data_columns}")
+        trainer.save_models(dir_path=model_path)
     else:
-        trainer.load_models(dir_path=f"models/{experiment}/{data_columns}")
+        trainer.load_models(dir_path=model_path)
 
     trainer.calculate_anomaly_scores()
-    trainer.evaluation(show_anomaly_scores=train)
+    trainer.evaluation(show_preds=True, show_roc=True)

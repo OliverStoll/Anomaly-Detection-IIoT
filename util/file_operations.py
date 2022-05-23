@@ -215,7 +215,7 @@ class Resampler:
 
 
 def _resample_all_to_defaults():
-    for i in [30, 100, 512]:
+    for i in [30, 100, 400]:
         # Resampler(directory_path='data/kbm', new_sampling_rate=i, feature_cols_tuple=(2, 6)).resample_all_csv_in_directory()
         Resampler(directory_path='data/bearing', new_sampling_rate=i, feature_cols_tuple=(0, 4)
                   ).resample_all_csv_in_directory()
