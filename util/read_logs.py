@@ -14,14 +14,21 @@ for trial in trial_list[1:]:
         val_loss = trial.split("\nval_loss: ")[1].split('\n')[0]
         all_hyperpars.append(hyperparameters)
         all_val_losses.append(float(val_loss))
-        print(hyperparameters, val_loss)
     except:
         pass
 
-# sort all_hyperpars alphabetically
+# get strings from hyperparameters
+all_labels = []
+for hyperpar in all_hyperpars:
+    label = ""
+    for i in range(len(hyperpar)):
+        label += hyperpar[i] + " "
+    all_labels.append(label)
 
-print(all_hyperpars)
-print(all_val_losses)
+print(all_labels)
+
+# sort by val_loss
+all_val_losses, all_labels = zip(*sorted(zip(all_val_losses, all_labels), reverse=True))
 
 
 # Plot the figure.
@@ -31,6 +38,6 @@ ax = freq_series.plot(kind="barh")
 ax.set_xscale('log')
 ax.set_title("Hyperparameter Tuning")
 ax.set_xlabel("Validation Loss")
-ax.set_yticklabels(all_hyperpars)
+ax.set_yticklabels(all_labels)
 
 plt.show()
