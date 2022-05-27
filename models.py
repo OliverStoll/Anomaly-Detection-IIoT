@@ -23,6 +23,9 @@ def lstm_autoencoder_model(hp=None):
     hp_learning_rate = hp.Choice('learning_rate', [1e-3, 3e-4, 1e-4, 3e-5, 1e-5]) if hp else 1e-4
     hp_hidden_size = hp.Int('hidden_size', 2, 12, step=2) if hp else 6
 
+    print("HYPER-NAMES: type, learning_rate, hidden_size,")
+    print(f"HYPERPARAMETERS:lstm;{hp_learning_rate};{hp_hidden_size}")
+
     # optimizer
     optimizer = optimizers.Adam(learning_rate=hp_learning_rate, clipnorm=1.0, clipvalue=0.5)
 
@@ -72,6 +75,9 @@ def fft_autoencoder_model(hp=None):
     # hyperparameter
     hp_learning_rate = hp.Choice('learning_rate', [1e-3, 3e-4, 1e-4, 3e-5, 1e-5]) if hp else 1e-4
     hp_hidden_size = 6  # hp.Int('hidden_size', 1, 16, step=1) if hp else 6
+
+    print("HYPER-NAMES: type, learning_rate, hidden_size,")
+    print(f"HYPERPARAMETERS:fft;{hp_learning_rate};{hp_hidden_size}")
 
     # optimizer
     optimizer = optimizers.Adam(learning_rate=hp_learning_rate, clipnorm=1.0, clipvalue=0.5)

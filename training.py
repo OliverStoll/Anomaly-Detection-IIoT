@@ -3,10 +3,12 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import os
+import sys
 import keras_tuner as kt
 from keras.callbacks import TensorBoard
 from tensorboard.plugins.hparams import api as hp
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
+from io import StringIO
 
 from evaluation import *  # evaluate_model_lstm, evaluate_model_fft, find_timestretches_from_indexes
 from models import lstm_autoencoder_model, fft_autoencoder_model
@@ -84,27 +86,39 @@ class Training:
         return data_3d, train_data_3d
 
     def tune_models(self, replace_models=False):
+        print("TUNING MODELS - REDIRECTING STDOUT")
+        # save stdout to a file
+        old_stdout = sys.stdout
+        # delete the old log file
+        if os.path.exists(f"logs/tuning_log.txt"):
+            os.remove(f"logs/tuning_log.txt")
+        sys.stdout = open(f"logs/tuning_log.txt", "w")
+
         tb_lstm = TensorBoard(log_dir=f"hyper_tuning/logs/lstm")
         tb_fft = TensorBoard(log_dir=f"hyper_tuning/logs/fft")
         tuner_lstm = kt.RandomSearch(lstm_autoencoder_model, objective='val_loss', tuner_id='id',
-                                     project_name="hyper_tuning/lstm", overwrite=True)
+                                     project_name="hyper_tuning/lstm", max_trials=1000000)
         tuner_fft = kt.RandomSearch(fft_autoencoder_model, objective='val_loss', tuner_id='id',
-                                    project_name="hyper_tuning/fft", overwrite=True)
+                                    project_name="hyper_tuning/fft", max_trials=1000000)
         tuner_lstm.search(self.data_train_3d,
                           self.data_train_3d,
                           epochs=50,
                           batch_size=self.batch_size,
                           validation_split=self.val_split,
-                          callbacks=[tb_lstm])
+                          callbacks=[tb_lstm],
+                          verbose=2)
         tuner_fft.search(self.fft_train_3d,
                          self.fft_train_3d,
-                         epochs=100,
+                         epochs=50,
                          batch_size=self.batch_size,
                          validation_split=self.val_split,
                          callbacks=[tb_fft])
         tuner_lstm.results_summary(num_trials=1)
         print()
         tuner_fft.results_summary(num_trials=1)
+
+        # restore stdout
+        sys.stdout = old_stdout
 
         if replace_models:
             self.model_lstm = tuner_lstm.get_best_models(num_models=1)[0]
@@ -270,6 +284,7 @@ def _run(train=True):
 
 
 if __name__ == '__main__':
+
     trainer = Training(data_path=c.CLIENT_1['DATASET_PATH'], data_columns=c.CLIENT_1['DATASET_COLUMNS'])
     trainer.tune_models()
     # trainer.train_models(epochs=c.EPOCHS)
