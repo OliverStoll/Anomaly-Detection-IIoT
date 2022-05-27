@@ -3,114 +3,23 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import os
-from keras.layers import Input, Dense, Flatten, Reshape, LSTM, TimeDistributed, RepeatVector
-from keras.models import Model
-from tensorflow.keras import optimizers
-from keras.regularizers import l2
+import keras_tuner as kt
+from keras.callbacks import TensorBoard
+from tensorboard.plugins.hparams import api as hp
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 
 from evaluation import *  # evaluate_model_lstm, evaluate_model_fft, find_timestretches_from_indexes
+from models import lstm_autoencoder_model, fft_autoencoder_model
 from util.calculations import *
-from util.callbacks import scheduler
+from util.callbacks import scheduler  # , tensor_callback
 from util.config import c, c_client
 
-
-def calculate_fft_from_data(data_3d):
-    """
-    Calculate the FFT of the data. The Data needs to be a 3D array.
-
-    :param data_3d: the 3d array of the data
-    :return: the 3d array with the fft of the data
-    """
-
-    # calculate the FFT by iterating over the features and the samples
-    fft = np.ndarray((data_3d.shape[0], data_3d.shape[1], data_3d.shape[2]))
-    for j in range(data_3d.shape[2]):  # iterate over each feature
-        for i in range(data_3d.shape[0]):  # iterate over each sample
-            fft_origin = data_3d[i, :, j]
-            fft_single = abs(np.fft.fft(fft_origin, axis=0))
-
-            # append the single fft computation to the fft array
-            fft[i, :, j] = fft_single
-
-    return fft
-
-
-def lstm_autoencoder_model(X):
-    """
-    A function to create a specific autoencoder model. The model is a LSTM-autoencoder with a single hidden layer.
-
-    The size of the hidden layer is determined by the number of features in the input.
-    The size of the LSTM layers is dependant on the LAYERS_EXPONENT parameter in the files.
-
-    :param X: the input data, which is used to configure the model correctly for the input size
-    :return: the initialized model
-    """
-
-    # print all relevant information
-    # print(f'CREATE LSTM MODEL - LAYERS: {c.LAYER_SIZES}')
-
-    # create the input layer
-    inputs = Input(shape=(X.shape[1], X.shape[2]))
-    x = inputs
-
-    # create the encoder LSTM layers
-    for i in range(len(c.LAYER_SIZES) - 1):
-        x = LSTM(c.LAYER_SIZES[i], activation='relu', return_sequences=True,
-                 kernel_regularizer=l2(1e-7), activity_regularizer=l2(1e-7))(x)
-    x = LSTM(c.LAYER_SIZES[-1], activation='relu', return_sequences=False,
-             kernel_regularizer=l2(1e-7), activity_regularizer=l2(1e-7))(x)
-
-    # pass the encoded data through a dense layer to the decoder
-    x = RepeatVector(X.shape[1])(x)
-
-    # create the decoder LSTM layers
-    for i in reversed(range(len(c.LAYER_SIZES))):
-        x = LSTM(c.LAYER_SIZES[i], activation='relu', return_sequences=True,
-                 kernel_regularizer=l2(1e-7), activity_regularizer=l2(1e-7))(x)
-
-    # create the output layer
-    output = TimeDistributed(Dense(X.shape[2]))(x)
-    model = Model(inputs=inputs, outputs=output)
-    return model
-
-
-def fft_autoencoder_model(X):
-    """
-    A function to create a specific autoencoder model for the FFT data. The model is a Denselayer-autoencoder.
-
-    :param X: the input data, which is used to configure the model correctly for the input size
-    :return: the initialized model
-    """
-
-    # print all relevant information
-    # print(f'CREATE FFT MODEL - INPUT: {X.shape}')
-
-    # create the input layer
-    inputs = Input(shape=(X.shape[1], X.shape[2]))
-    x = Flatten()(inputs)
-
-    # create the encoder layers
-    x = Dense(64, activation='relu', kernel_regularizer=l2(1e-7), activity_regularizer=l2(1e-7))(x)
-    x = Dense(16, activation='relu', kernel_regularizer=l2(1e-7), activity_regularizer=l2(1e-7))(x)
-
-    # pass the encoded data through a dense layer to the decoder
-    x = Dense(6, activation='relu', kernel_regularizer=l2(1e-7), activity_regularizer=l2(1e-7))(x)
-
-    # create the decoder layers
-    x = Dense(16, activation='relu', kernel_regularizer=l2(1e-7), activity_regularizer=l2(1e-7))(x)
-    x = Dense(64, activation='relu', kernel_regularizer=l2(1e-7), activity_regularizer=l2(1e-7))(x)
-
-    # create the output layer
-    x = Dense(X.shape[1] * X.shape[2])(x)
-    output = Reshape((X.shape[1], X.shape[2]))(x)
-
-    model = Model(inputs=inputs, outputs=output)
-    return model
+os.environ['CUDA_VISIBLE_DEVICES'] = '-1'  # disable GPU usage (IIoT)
 
 
 class Training:
     def __init__(self, data_path, data_columns):
+        # config values
         self.data_path = data_path
         self.dataset_name = data_path.split('/')[-2]
         self.experiment_name = data_path.split('/')[-1]
@@ -120,22 +29,26 @@ class Training:
         self.batch_size = c.BATCH_SIZE
         self.val_split = c.VAL_SPLIT
         self.train_split = c.TRAIN_SPLIT
-        self.labels = anomalies[self.dataset_name][self.experiment_name]['bearing-0']
-        self.data_3d, self.data_train_3d = self.load_and_normalize_data()
+        # data
+        self.labels = anomalies[self.dataset_name][self.experiment_name]['bearing-0']  # todo: generalize
+        self.data_3d, self.data_train_3d = self._load_and_normalize_data()
         self.data_2d = self.data_3d.reshape((-1, self.data_3d.shape[2]))
         self.fft_3d = calculate_fft_from_data(self.data_3d)
-        self.fft_2d = self.fft_3d.reshape((-1, self.fft_3d.shape[2]))
         self.fft_train_3d = calculate_fft_from_data(self.data_train_3d)
-        self.model_lstm, self.model_fft = self.initialize_models()
+        self.fft_2d = self.fft_3d.reshape((-1, self.fft_3d.shape[2]))
+        # models and losses
+        self.model_lstm = lstm_autoencoder_model()
+        self.model_fft = fft_autoencoder_model()
         self.history_lstm = {'loss': [], 'val_loss': []}
         self.history_fft = {'loss': [], 'val_loss': []}
         self.mse_lstm = []
         self.mse_fft = []
         self.data_pred_2d = []
         self.fft_pred_2d = []
-        self.callbacks = [tf.keras.callbacks.LearningRateScheduler(scheduler)]  # initialize the learning rate scheduler
+        self.callbacks = [tf.keras.callbacks.LearningRateScheduler(scheduler),
+                          TensorBoard(log_dir=f"logs/train/lstm")]  # initialize the learning rate scheduler
 
-    def load_and_normalize_data(self):
+    def _load_and_normalize_data(self):
         """
         Prepare the data for training and evaluation. All features need to be extracted and named.
 
@@ -170,28 +83,32 @@ class Training:
 
         return data_3d, train_data_3d
 
-    def initialize_models(self):
-        """
-        Initialize the model with the training data. The training data needs to be formatted as a 3D array.
+    def tune_models(self, replace_models=False):
+        tb_lstm = TensorBoard(log_dir=f"hyper_tuning/logs/lstm")
+        tb_fft = TensorBoard(log_dir=f"hyper_tuning/logs/fft")
+        tuner_lstm = kt.RandomSearch(lstm_autoencoder_model, objective='val_loss', tuner_id='id',
+                                     project_name="hyper_tuning/lstm", overwrite=True)
+        tuner_fft = kt.RandomSearch(fft_autoencoder_model, objective='val_loss', tuner_id='id',
+                                    project_name="hyper_tuning/fft", overwrite=True)
+        tuner_lstm.search(self.data_train_3d,
+                          self.data_train_3d,
+                          epochs=50,
+                          batch_size=self.batch_size,
+                          validation_split=self.val_split,
+                          callbacks=[tb_lstm])
+        tuner_fft.search(self.fft_train_3d,
+                         self.fft_train_3d,
+                         epochs=100,
+                         batch_size=self.batch_size,
+                         validation_split=self.val_split,
+                         callbacks=[tb_fft])
+        tuner_lstm.results_summary(num_trials=1)
+        print()
+        tuner_fft.results_summary(num_trials=1)
 
-        The training data is split into training and validation data.
-
-        :return: the initialized model
-        """
-
-        # get both models from their respective functions
-        model_lstm = lstm_autoencoder_model(self.data_train_3d)
-        model_fft = fft_autoencoder_model(self.fft_train_3d)
-
-        # create two adam optimizers for the models (could be one but not sure if safe to do so)
-        opt = optimizers.Adam(learning_rate=c.LEARNING_RATE, clipnorm=1.0, clipvalue=0.5)
-        opt_fft = optimizers.Adam(learning_rate=c.LEARNING_RATE, clipnorm=1.0, clipvalue=0.5)
-
-        # compile the models
-        model_lstm.compile(optimizer=opt, loss=c.LOSS_FN)
-        model_fft.compile(optimizer=opt_fft, loss='mse')
-
-        return model_lstm, model_fft
+        if replace_models:
+            self.model_lstm = tuner_lstm.get_best_models(num_models=1)[0]
+            self.model_fft = tuner_fft.get_best_models(num_models=1)[0]
 
     def load_models(self, dir_path):
         """
@@ -251,7 +168,6 @@ class Training:
     def calculate_auc(self, mse, threshold, threshold_factors):
 
         all_anomaly_indexes = []
-        auc_coords = []
         fps = []
         tps = []
         f1_max = (0, 0)
@@ -336,13 +252,10 @@ class Training:
                                ).plot_experiment()
 
 
-if __name__ == '__main__':
-    os.environ['CUDA_VISIBLE_DEVICES'] = '-1'  # disable GPU usage
-
-    # define the experiment for testing
-    train = True
+def _run(train=True):
     # experiment, data_columns = "bearing/experiment-2", [0]
-    dataset_path, data_columns, model_path = c.CLIENT_1['DATASET_PATH'], c.CLIENT_1['DATASET_COLUMNS'], c.CLIENT_1['MODEL_PATH']
+    dataset_path, data_columns, model_path = c.CLIENT_1['DATASET_PATH'], c.CLIENT_1['DATASET_COLUMNS'], c.CLIENT_1[
+        'MODEL_PATH']
 
     # initialize the trainer and train/infere the model
     trainer = Training(data_path=dataset_path, data_columns=data_columns)
@@ -354,3 +267,10 @@ if __name__ == '__main__':
 
     trainer.calculate_anomaly_scores()
     trainer.evaluation(show_preds=True, show_roc=True)
+
+
+if __name__ == '__main__':
+    trainer = Training(data_path=c.CLIENT_1['DATASET_PATH'], data_columns=c.CLIENT_1['DATASET_COLUMNS'])
+    trainer.tune_models()
+    # trainer.train_models(epochs=c.EPOCHS)
+    # trainer.evaluation(show_preds=True, show_roc=True)

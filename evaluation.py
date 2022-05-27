@@ -12,6 +12,7 @@ from sklearn.metrics import mean_squared_error
 
 from util.config import c
 
+# plot big images
 mpl.rcParams['agg.path.chunksize'] = 10000
 
 # load anomalies dict from anomalies.yaml
@@ -26,6 +27,7 @@ def plot_infotable(trainer):
     :return:
     """
 
+    # extract the relevant data from the trainer object
     data = trainer.data_2d[:, 0]
     pred = trainer.data_pred_2d[:, 0]
     mse = trainer.mse_lstm
@@ -40,11 +42,11 @@ def plot_infotable(trainer):
     # take a chunk of the size of three measurements and plot the predictions and the actual values
     results_chunk = results.iloc[50 * c.SPLIT:53 * c.SPLIT, :]
 
-    # plot different graphics
+    # create figure
     plt.figure(figsize=(15, 10))
     font_d = {'size': 12}
 
-    # create a subplot for the predictions and the actual values
+    # subplot the predictions and the actual values
     plt.subplot(2, 2, 1)
     for i in range(1):  # only plots one feature
         plt.plot(results[f'Pred_{i}'], label=f'pred_{i}', color=(1 - i * 0.1, 0, 0))
@@ -53,23 +55,23 @@ def plot_infotable(trainer):
     plt.legend(loc='upper left')
     plt.title('Predictions and Actual Values', fontdict=font_d)
 
-    # create a subplot that plots the anomaly score and a threshold
+    # subplot the anomaly score and threshold
     plt.subplot(2, 2, 2)
     plt.title("Anomaly Score", fontdict=font_d)
     plt.plot(mse, label='Loss_MSE')
     plt.ylim(0, min(max(mse) * 1.2, 3 * c.THRESHOLD_LSTM))
     plt.axhline(y=c.THRESHOLD_LSTM, color='r', linestyle='-', label="Threshold")
 
-    # create a subplot for the predictions and the actual values of the chunk
+    # subplot the predictions and the actual values of the chunk
     plt.subplot(2, 2, 3)
     plt.title("Vibration - Chunk", fontdict=font_d)
-    for i in range(num_features):
+    for i in range(1):
         plt.plot(results_chunk[f'Data_{i}'].tolist(), label=f"Data_{i}", color=(1 - i * 0.3, i * 0.3, 0), linestyle='-')
         plt.plot(results_chunk[f'Pred_{i}'].tolist(), label=f"Prediction_{i}", color=(1 - i * 0.3, i * 0.3, 0),
                  linestyle='--')
     plt.legend()
 
-    # create a subplot that includes all metrics in text form
+    # subplot all metrics in text form
     plt.subplot(2, 2, 4)
     plt.axis('off')
     if len(loss) > 0 and len(val_loss) > 0:
@@ -129,15 +131,15 @@ class RocPlotter:
         self.fig = plt.figure(figsize=(15, 10))
         self.fig.suptitle("ROC Curve", fontsize=20)
         self.subplot_x = 2
-        self.index = 1
+        self.subplot_index = 1
 
     def show(self):
         self.fig.show()
 
     def plot_single_roc(self, fps, tps, auc, f1_max):
 
-        ax = self.fig.add_subplot(1, self.subplot_x, self.index)
-        self.index += 1
+        ax = self.fig.add_subplot(1, self.subplot_x, self.subplot_index)
+        self.subplot_index += 1
         ax.plot(fps[f1_max[1]], tps[f1_max[1]], 'ro', label='Max F1 Score')
 
         fps = np.insert(fps, 0, 0)

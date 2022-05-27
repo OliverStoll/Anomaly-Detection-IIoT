@@ -1,6 +1,6 @@
 import pandas as pd
+import numpy as np
 from datetime import datetime
-
 
 
 def get_timestamp_percentiles(path, timestamps):
@@ -102,8 +102,29 @@ def calculate_precision_recall_f1(tp, fp, fn, tn):
     Function that calculates the precision, recall and f1 score.
     """
 
-    precision = tp / (tp + fp)
-    recall = tp / (tp + fn)
+    precision = tp / (tp + fp) if tp > 0 else 0
+    recall = tp / (tp + fn) if tp > 0 else 0
     f1 = 2 * precision * recall / (precision + recall)
 
     return precision, recall, f1
+
+
+def calculate_fft_from_data(data_3d):
+    """
+    Calculate the FFT of the data. The Data needs to be a 3D array.
+
+    :param data_3d: the 3d array of the data
+    :return: the 3d array with the fft of the data
+    """
+
+    # calculate the FFT by iterating over the features and the samples
+    fft = np.ndarray((data_3d.shape[0], data_3d.shape[1], data_3d.shape[2]))
+    for j in range(data_3d.shape[2]):  # iterate over each feature
+        for i in range(data_3d.shape[0]):  # iterate over each sample
+            fft_origin = data_3d[i, :, j]
+            fft_single = abs(np.fft.fft(fft_origin, axis=0))
+
+            # append the single fft computation to the fft array
+            fft[i, :, j] = fft_single
+
+    return fft
