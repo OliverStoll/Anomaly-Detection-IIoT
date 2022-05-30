@@ -85,20 +85,46 @@ class Training:
 
         return data_3d, train_data_3d
 
+    def load_models(self, dir_path):
+        """
+        Load the models from the specified directory.
+
+        :param dir_path: the directory path to the models
+        :return: the model and the fft model
+        """
+
+        # load the models
+        self.model_lstm = tf.keras.models.load_model(f"{dir_path}/lstm_model.h5")
+        self.model_fft = tf.keras.models.load_model(f"{dir_path}/fft_model.h5")
+
+    def save_models(self, dir_path):
+        """
+        Save the models to the specified directory.
+
+        :param dir_path: the directory path to the models
+        """
+
+        # save the models
+        self.model_lstm.save(f"{dir_path}/lstm_model.h5")
+        self.model_fft.save(f"{dir_path}/fft_model.h5")
+
     def tune_models(self, replace_models=False):
         print("TUNING MODELS - REDIRECTING STDOUT")
+
         # save stdout to a file
         old_stdout = sys.stdout
-        # delete the old log file
-        if os.path.exists(f"logs/tuning_log.txt"):
-            os.remove(f"logs/tuning_log.txt")
-        sys.stdout = open(f"logs/tuning_log.txt", "w")
+        # delete the old log file and create folder if not existing
+        log_path = f"hyper_tuning/tuning_log.txt"
+        os.makedirs("hyper_tuning", exist_ok=True)
+        if os.path.exists(log_path):
+            os.remove(log_path)
+        sys.stdout = open(f"hyper_tuning/tuning_log.txt", "w")
 
         tb_lstm = TensorBoard(log_dir=f"hyper_tuning/logs/lstm")
         tb_fft = TensorBoard(log_dir=f"hyper_tuning/logs/fft")
-        tuner_lstm = kt.RandomSearch(lstm_autoencoder_model, objective='val_loss', tuner_id='id',
+        tuner_lstm = kt.RandomSearch(lstm_autoencoder_model, objective='val_loss',
                                      project_name="hyper_tuning/lstm", max_trials=1000000)
-        tuner_fft = kt.RandomSearch(fft_autoencoder_model, objective='val_loss', tuner_id='id',
+        tuner_fft = kt.RandomSearch(fft_autoencoder_model, objective='val_loss',
                                     project_name="hyper_tuning/fft", max_trials=1000000)
         tuner_lstm.search(self.data_train_3d,
                           self.data_train_3d,
@@ -123,29 +149,6 @@ class Training:
         if replace_models:
             self.model_lstm = tuner_lstm.get_best_models(num_models=1)[0]
             self.model_fft = tuner_fft.get_best_models(num_models=1)[0]
-
-    def load_models(self, dir_path):
-        """
-        Load the models from the specified directory.
-
-        :param dir_path: the directory path to the models
-        :return: the model and the fft model
-        """
-
-        # load the models
-        self.model_lstm = tf.keras.models.load_model(f"{dir_path}/lstm_model.h5")
-        self.model_fft = tf.keras.models.load_model(f"{dir_path}/fft_model.h5")
-
-    def save_models(self, dir_path):
-        """
-        Save the models to the specified directory.
-
-        :param dir_path: the directory path to the models
-        """
-
-        # save the models
-        self.model_lstm.save(f"{dir_path}/lstm_model.h5")
-        self.model_fft.save(f"{dir_path}/fft_model.h5")
 
     def train_models(self, epochs=1):
         """

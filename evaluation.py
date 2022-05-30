@@ -19,6 +19,7 @@ mpl.rcParams['agg.path.chunksize'] = 10000
 anomalies = yaml.safe_load(open(f"files/anomalies.yaml"))
 
 
+
 def plot_infotable(trainer):
     """
     Plot the predictions and the actual values of the dataset. Also plot all relevant metrics such as loss and val_loss.

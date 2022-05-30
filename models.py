@@ -10,7 +10,7 @@ from util.config import c, c_client
 
 def lstm_autoencoder_model(hp=None):
     """
-    A function to create a specific autoencoder model. The model is a LSTM-autoencoder with a single hidden layer.
+    A function to create a LSTM-autoencoder with a single hidden layer.
 
     The size of the hidden layer is determined by the number of features in the input.
     The size of the LSTM layers is dependant on the LAYERS_EXPONENT parameter in the files.
@@ -20,14 +20,20 @@ def lstm_autoencoder_model(hp=None):
     """
 
     # hyperparameter
-    hp_learning_rate = hp.Choice('learning_rate', [1e-3, 3e-4, 1e-4, 3e-5, 1e-5]) if hp else 1e-4
-    hp_hidden_size = hp.Int('hidden_size', 2, 12, step=2) if hp else 6
+    learning_rate = hp.Choice('learning_rate', [3e-2, 1e-2, 3e-2, 1e-3, 3e-4]) if hp else c.LEARNING_RATE
+    outer_layer_size = 512  # hp.Choice('outer_layer_size', [32, 64, 128, 256, 512]) if hp else c.LAYER_SIZES[0]
+    layers_amount = 1  # hp.Choice('layers_amount', [1, 2, 3, 4]) if hp else len(c.LAYER_SIZES)
+    hidden_size = 6  # hp.Int('hidden_size', 2, 12, step=2) if hp else 6
 
-    print("HYPER-NAMES: type, learning_rate, hidden_size,")
-    print(f"HYPERPARAMETERS:lstm;{hp_learning_rate};{hp_hidden_size}")
+    # calculate the layer sizes from hyperparameters
+    layer_shrinking_factor = outer_layer_size / hidden_size
+    layer_sizes = [int(hidden_size * layer_shrinking_factor ** ((i+1)/layers_amount)) for i in range(layers_amount)]
+
+    print("HYPER-NAMES: type, learning_rate, outer_layer_size, layers_amount")
+    print(f"HYPERPARAMETERS:lstm;{learning_rate};{outer_layer_size};{layers_amount}")
 
     # optimizer
-    optimizer = optimizers.Adam(learning_rate=hp_learning_rate, clipnorm=1.0, clipvalue=0.5)
+    optimizer = optimizers.Adam(learning_rate=learning_rate, clipnorm=1.0, clipvalue=0.5)
 
     # create the input layer
     timesteps = c.SPLIT
@@ -36,24 +42,24 @@ def lstm_autoencoder_model(hp=None):
     x = inputs
 
     # create the encoder LSTM layers
-    for i in range(len(c.LAYER_SIZES) - 1):
-        x = LSTM(c.LAYER_SIZES[i], activation='relu', return_sequences=True,
+    for layer_size in layer_sizes[::-1]:
+        x = LSTM(layer_size, activation='relu', return_sequences=True,
                  kernel_regularizer=l2(1e-7), activity_regularizer=l2(1e-7))(x)
 
     # create the last encoder layer with hp_hidden_size
-    x = LSTM(hp_hidden_size, activation='relu', return_sequences=False,
+    x = LSTM(hidden_size, activation='relu', return_sequences=False,
              kernel_regularizer=l2(1e-7), activity_regularizer=l2(1e-7))(x)
 
     # pass the encoded data through a dense layer to the decoder
     x = RepeatVector(timesteps)(x)
 
     # create the first decoder layer with hp_hidden_size
-    x = LSTM(hp_hidden_size, activation='relu', return_sequences=True,
+    x = LSTM(hidden_size, activation='relu', return_sequences=True,
              kernel_regularizer=l2(1e-7), activity_regularizer=l2(1e-7))(x)
 
     # create the decoder LSTM layers
-    for i in reversed(range(len(c.LAYER_SIZES) - 1)):
-        x = LSTM(c.LAYER_SIZES[i], activation='relu', return_sequences=True,
+    for layer_size in layer_sizes:
+        x = LSTM(layer_size, activation='relu', return_sequences=True,
                  kernel_regularizer=l2(1e-7), activity_regularizer=l2(1e-7))(x)
 
     # create the plots layer
@@ -72,15 +78,28 @@ def fft_autoencoder_model(hp=None):
     :return: the initialized model
     """
 
-    # hyperparameter
-    hp_learning_rate = hp.Choice('learning_rate', [1e-3, 3e-4, 1e-4, 3e-5, 1e-5]) if hp else 1e-4
-    hp_hidden_size = 6  # hp.Int('hidden_size', 1, 16, step=1) if hp else 6
+    # default hyperparameters
+    learning_rate = c.LEARNING_RATE
+    outer_layer_size = c.LAYER_SIZES[0]
+    layers_amount = len(c.LAYER_SIZES)
+    hidden_size = 6  # hp.Int('hidden_size', 1, 16, step=1) if hp else 6
+
+    # hyperparameter tuning
+    if hp:
+        learning_rate = hp.Choice('learning_rate', [3e-2, 1e-2, 3e-2, 1e-3, 3e-4]) if hp else c.LEARNING_RATE
+        outer_layer_size = hp.Choice('outer_layer_size', [32, 64, 128, 256, 512]) if hp else c.LAYER_SIZES[0]
+        layers_amount = hp.Choice('layers_amount', [1, 2, 3, 4]) if hp else len(c.LAYER_SIZES)
+
+
+    # calculate the layer sizes from hyperparameters
+    layer_shrinking_factor = outer_layer_size / hidden_size
+    layer_sizes = [int(hidden_size * layer_shrinking_factor ** ((i + 1) / layers_amount)) for i in range(layers_amount)]
 
     print("HYPER-NAMES: type, learning_rate, hidden_size,")
-    print(f"HYPERPARAMETERS:fft;{hp_learning_rate};{hp_hidden_size}")
+    print(f"HYPERPARAMETERS:fft;{learning_rate};{outer_layer_size};{layers_amount}")
 
     # optimizer
-    optimizer = optimizers.Adam(learning_rate=hp_learning_rate, clipnorm=1.0, clipvalue=0.5)
+    optimizer = optimizers.Adam(learning_rate=learning_rate, clipnorm=1.0, clipvalue=0.5)
 
     # create the input layer
     timesteps = c.SPLIT
@@ -89,15 +108,15 @@ def fft_autoencoder_model(hp=None):
     x = Flatten()(inputs)
 
     # create the encoder layers
-    x = Dense(64, activation='relu', kernel_regularizer=l2(1e-7), activity_regularizer=l2(1e-7))(x)
-    x = Dense(16, activation='relu', kernel_regularizer=l2(1e-7), activity_regularizer=l2(1e-7))(x)
+    for layer_size in layer_sizes[::-1]:
+        x = Dense(layer_size, activation='relu', kernel_regularizer=l2(1e-7), activity_regularizer=l2(1e-7))(x)
 
     # pass the encoded data through a dense layer to the decoder
-    x = Dense(hp_hidden_size, activation='relu', kernel_regularizer=l2(1e-7), activity_regularizer=l2(1e-7))(x)
+    x = Dense(hidden_size, activation='relu', kernel_regularizer=l2(1e-7), activity_regularizer=l2(1e-7))(x)
 
     # create the decoder layers
-    x = Dense(16, activation='relu', kernel_regularizer=l2(1e-7), activity_regularizer=l2(1e-7))(x)
-    x = Dense(64, activation='relu', kernel_regularizer=l2(1e-7), activity_regularizer=l2(1e-7))(x)
+    for layer_size in layer_sizes:
+        x = Dense(layer_size, activation='relu', kernel_regularizer=l2(1e-7), activity_regularizer=l2(1e-7))(x)
 
     # create the plots layer
     x = Dense(timesteps * num_features)(x)
