@@ -19,118 +19,126 @@ mpl.rcParams['agg.path.chunksize'] = 10000
 anomalies = yaml.safe_load(open(f"files/anomalies.yaml"))
 
 
+class MiscPlotter:
+    def __init__(self, trainer):
+        self.trainer = trainer
 
-def plot_infotable(trainer):
-    """
-    Plot the predictions and the actual values of the dataset. Also plot all relevant metrics such as loss and val_loss.
+    def plot_infotable(self):
+        """
+        Plot the predictions and the actual values of the dataset. Also plot all relevant metrics such as loss and val_loss.
 
-    :param trainer: the trainer object that contains the model and the data
-    :return:
-    """
+        :param trainer: the trainer object that contains the model and the data
+        :return:
+        """
 
-    # extract the relevant data from the trainer object
-    data = trainer.data_2d[:, 0]
-    pred = trainer.data_pred_2d[:, 0]
-    mse = trainer.mse_lstm
-    loss = trainer.history_lstm['loss']
-    val_loss = trainer.history_lstm['val_loss']
-    num_features = len(trainer.data_columns)
+        # extract the relevant data from the trainer object
+        trainer = self.trainer
+        data = trainer.data_2d[:, 0]
+        pred = trainer.data_pred_2d[:, 0]
+        mse = trainer.mse_lstm
+        loss = trainer.history_lstm['loss']
+        val_loss = trainer.history_lstm['val_loss']
+        num_features = len(trainer.data_columns)
 
-    results = pd.DataFrame()
-    results['Pred_0'] = pred
-    results['Data_0'] = data
+        results = pd.DataFrame()
+        results['Pred_0'] = pred
+        results['Data_0'] = data
 
-    # take a chunk of the size of three measurements and plot the predictions and the actual values
-    results_chunk = results.iloc[50 * c.SPLIT:53 * c.SPLIT, :]
+        # take a chunk of the size of three measurements and plot the predictions and the actual values
+        results_chunk = results.iloc[50 * c.SPLIT:53 * c.SPLIT, :]
 
-    # create figure
-    plt.figure(figsize=(15, 10))
-    font_d = {'size': 12}
+        # create figure
+        plt.figure(figsize=(15, 10))
+        font_d = {'size': 12}
 
-    # subplot the predictions and the actual values
-    plt.subplot(2, 2, 1)
-    for i in range(1):  # only plots one feature
-        plt.plot(results[f'Pred_{i}'], label=f'pred_{i}', color=(1 - i * 0.1, 0, 0))
-        plt.plot(results[f'Data_{i}'], label=f'actual_{i}', color=(0, 0, 1 - i * 0.1))
-        plt.ylim(-0.1, 3)
-    plt.legend(loc='upper left')
-    plt.title('Predictions and Actual Values', fontdict=font_d)
+        # subplot the predictions and the actual values
+        plt.subplot(2, 2, 1)
+        for i in range(1):  # only plots one feature
+            plt.plot(results[f'Pred_{i}'], label=f'pred_{i}', color=(1 - i * 0.1, 0, 0))
+            plt.plot(results[f'Data_{i}'], label=f'actual_{i}', color=(0, 0, 1 - i * 0.1))
+            plt.ylim(-0.1, 3)
+        plt.legend(loc='upper left')
+        plt.title('Predictions and Actual Values', fontdict=font_d)
 
-    # subplot the anomaly score and threshold
-    plt.subplot(2, 2, 2)
-    plt.title("Anomaly Score", fontdict=font_d)
-    plt.plot(mse, label='Loss_MSE')
-    plt.ylim(0, min(max(mse) * 1.2, 3 * c.THRESHOLD_LSTM))
-    plt.axhline(y=c.THRESHOLD_LSTM, color='r', linestyle='-', label="Threshold")
+        # subplot the anomaly score and threshold
+        plt.subplot(2, 2, 2)
+        plt.title("Anomaly Score", fontdict=font_d)
+        plt.plot(mse, label='Loss_MSE')
+        plt.ylim(0, min(max(mse) * 1.2, 3 * c.THRESHOLD_LSTM))
+        plt.axhline(y=c.THRESHOLD_LSTM, color='r', linestyle='-', label="Threshold")
 
-    # subplot the predictions and the actual values of the chunk
-    plt.subplot(2, 2, 3)
-    plt.title("Vibration - Chunk", fontdict=font_d)
-    for i in range(1):
-        plt.plot(results_chunk[f'Data_{i}'].tolist(), label=f"Data_{i}", color=(1 - i * 0.3, i * 0.3, 0), linestyle='-')
-        plt.plot(results_chunk[f'Pred_{i}'].tolist(), label=f"Prediction_{i}", color=(1 - i * 0.3, i * 0.3, 0),
-                 linestyle='--')
-    plt.legend()
+        # subplot the predictions and the actual values of the chunk
+        plt.subplot(2, 2, 3)
+        plt.title("Vibration - Chunk", fontdict=font_d)
+        for i in range(1):
+            plt.plot(results_chunk[f'Data_{i}'].tolist(), label=f"Data_{i}", color=(1 - i * 0.3, i * 0.3, 0), linestyle='-')
+            plt.plot(results_chunk[f'Pred_{i}'].tolist(), label=f"Prediction_{i}", color=(1 - i * 0.3, i * 0.3, 0),
+                     linestyle='--')
+        plt.legend()
 
-    # subplot all metrics in text form
-    plt.subplot(2, 2, 4)
-    plt.axis('off')
-    if len(loss) > 0 and len(val_loss) > 0:
-        text = f"Epochs: {c.EPOCHS}\nLoss:       {loss[-1]:.1e}\nVal_Loss: {val_loss[-1]:.1e}\n\n" \
-               f"Batch: {c.BATCH_SIZE}\nLearn_r: {c.LEARNING_RATE:.0e}\nLR_Red: {c.LR_DECAY}" \
-               f"\n\nLSTM: {c.LAYER_SIZES}\nSplit: {c.SPLIT}"
-        plt.text(0.2, 0.9, text, ha='left', va='top', fontdict={'fontsize': 20})
+        # subplot all metrics in text form
+        plt.subplot(2, 2, 4)
+        plt.axis('off')
+        if len(loss) > 0 and len(val_loss) > 0:
+            text = f"Epochs: {c.EPOCHS}\nLoss:       {loss[-1]:.1e}\nVal_Loss: {val_loss[-1]:.1e}\n\n" \
+                   f"Batch: {c.BATCH_SIZE}\nLearn_r: {c.LEARNING_RATE:.0e}\nLR_Red: {c.LR_DECAY}" \
+                   f"\n\nLSTM: {c.OUTER_LAYER_SIZE}-{c.HIDDEN_LAYER_SIZE}\nSplit: {c.SPLIT}"
+            plt.text(0.2, 0.9, text, ha='left', va='top', fontdict={'fontsize': 20})
 
-    # show the figure
-    plt.suptitle(f"Infotable {trainer.experiment_name}", fontsize=20)
-    plt.show()
+        # show the figure
+        plt.suptitle(f"Infotable {trainer.experiment_name} ({os.getenv('CLIENT_NAME')})", fontsize=20)
+        plt.show()
 
+    def plot_anomaly_scores(self):
 
-def plot_anomaly_scores(mse_lstm, mse_fft):
+        # get the mses
+        mse_lstm = self.trainer.mse_lstm
+        mse_fft = self.trainer.mse_fft
 
-    # add two subplots
-    fig, ax = plt.subplots(2, 1, figsize=(15, 10))
+        # add two subplots
+        fig, ax = plt.subplots(2, 1, figsize=(15, 10))
 
-    # plot the mse of the lstm model
-    ax[0].plot(mse_lstm)
-    ax[0].set_title("LSTM Autoencoder Anomaly Score")
-    ax[0].set_ylim(0, 3 * c.THRESHOLD_LSTM)
-    ax[0].axhline(y=c.THRESHOLD_LSTM, color='r', linestyle='-')  # plot horizontal line at threshold
+        # plot the mse of the lstm model
+        ax[0].plot(mse_lstm)
+        ax[0].set_title("LSTM Autoencoder Anomaly Score")
+        ax[0].set_ylim(0, 3 * c.THRESHOLD_LSTM)
+        ax[0].axhline(y=c.THRESHOLD_LSTM, color='r', linestyle='-')  # plot horizontal line at threshold
 
-    # plot the mse of the fft model
-    ax[1].plot(mse_fft)
-    ax[1].set_title("FFT Autoencoder Anomaly Score")
-    ax[1].set_ylim(0, 3 * c.THRESHOLD_FFT)
-    ax[1].axhline(y=c.THRESHOLD_FFT, color='r', linestyle='-')  # plot horizontal line at threshold
+        # plot the mse of the fft model
+        ax[1].plot(mse_fft)
+        ax[1].set_title("FFT Autoencoder Anomaly Score")
+        ax[1].set_ylim(0, 3 * c.THRESHOLD_FFT)
+        ax[1].axhline(y=c.THRESHOLD_FFT, color='r', linestyle='-')  # plot horizontal line at threshold
 
-    # show the plot
-    plt.suptitle("Anomaly Scores", fontsize=20)
-    fig.show()
+        # show the plot
+        plt.suptitle(f"Anomaly Scores ({os.getenv('CLIENT_NAME')})", fontsize=20)
+        fig.show()
 
+    def plot_losses(self, ylim):
+        plt.figure(figsize=(15, 10))
+        plt.subplot(2, 1, 1)
+        plt.ylim([0, ylim])
+        plt.plot(self.trainer.history_lstm['loss'], label='Loss')
+        plt.plot(self.trainer.history_lstm['val_loss'], label='Val_Loss')
+        plt.title("LSTM Autoencoder Loss")
+        plt.legend()
+        plt.subplot(2, 1, 2)
+        plt.ylim([0, ylim])
+        plt.plot(self.trainer.history_fft['loss'], label='Loss')
+        plt.plot(self.trainer.history_fft['val_loss'], label='Val_Loss')
+        plt.title("FFT Autoencoder Loss")
+        plt.legend()
+        plt.suptitle(f"Losses ({os.getenv('CLIENT_NAME')})", fontsize=20)
+        plt.show()
 
-def plot_losses(history_lstm, history_fft, ylim):
-    print(ylim)
-    plt.figure(figsize=(15, 10))
-    plt.subplot(2, 1, 1)
-    plt.ylim([0, ylim])
-    plt.plot(history_lstm['loss'], label='Loss')
-    plt.plot(history_lstm['val_loss'], label='Val_Loss')
-    plt.title("LSTM Autoencoder Loss")
-    plt.legend()
-    plt.subplot(2, 1, 2)
-    plt.ylim([0, ylim])
-    plt.plot(history_fft['loss'], label='Loss')
-    plt.plot(history_fft['val_loss'], label='Val_Loss')
-    plt.title("FFT Autoencoder Loss")
-    plt.legend()
-    plt.suptitle("Losses", fontsize=20)
-    plt.show()
+    def plot_roc(self):
+        roc_plotter = RocPlotter()
 
 
 class RocPlotter:
     def __init__(self):
         self.fig = plt.figure(figsize=(15, 10))
-        self.fig.suptitle("ROC Curve", fontsize=20)
+        self.fig.suptitle(f"ROC Curve ({os.getenv('CLIENT_NAME')})", fontsize=20)
         self.subplot_x = 2
         self.subplot_index = 1
 
@@ -207,7 +215,8 @@ class PredictionsPlotter:
                 self._add_single_subplot(inner=inner, sub_experiment=sub_experiment, index=index)
 
         # plot title and show the figure
-        self.fig.suptitle(f"Predictions: {self.file_path.split('/')[-1].replace('.csv', '')}", fontsize=20)
+        self.fig.suptitle(f"Predictions: {self.file_path.split('/')[-1].replace('.csv', '')} ({os.getenv('CLIENT_NAME')})",
+                          fontsize=20)
         self._add_legend_to_figure()
         self.fig.show()
 
@@ -315,7 +324,6 @@ def _plot_all_bearing(ending):
             PredictionsPlotter(file_path=f'data/bearing/{file}', sub_plots=4, features=features,
                                anomalies_real=anomalies['bearing'][file.split("/")[-1].replace(ending, "")], ylim=.5
                                ).plot_experiment()
-
 
 
 if __name__ == '__main__':

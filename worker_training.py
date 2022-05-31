@@ -1,9 +1,10 @@
 import socket
+import pickle
 import os
+import random
 from keras.models import load_model
 
 from training import Training
-from evaluation import evaluate_model_lstm, evaluate_model_fft
 from util.socket_functionality import send_msg, recv_msg
 from util.config import c, c_client
 
@@ -19,45 +20,44 @@ class TrainingWorker:
     training cycle.
     """
 
-    def __init__(self, server_ip_port, data_path, data_cols, model_path):
+    def __init__(self, connect_ip_port: (str, int), data_path: str, data_cols: list, model_path: str):
         self.trainer = Training(data_path=data_path, data_columns=data_cols)
-        self.model_path = model_path
+        self.model_path = f"{model_path}/client-{random.randint(100, 1000)}"
         self.epoch = 0
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.socket.connect(server_ip_port)
-        print(f"TRAININGWORKER: Connected to {server_ip_port}")
+        self.socket.connect((connect_ip_port[0], connect_ip_port[1]))
+        print(f"TRAININGWORKER: Connected to {connect_ip_port}")
 
     def train_round(self, epochs):
         self.trainer.train_models(epochs=epochs)  # TODO: check efficiency
         self.epoch += epochs
 
     def send_weights(self):
-        self.trainer.model_fft.save(f"{self.model_path}/model_fft.h5")
-        with open(f"{self.model_path}/model_fft.h5", "rb") as file:
-            data = file.read()
-        send_msg(sock=self.socket, msg=data)
+        weights = self.trainer.model_fft.get_weights()
+        weights_data = pickle.dumps(weights)
+        send_msg(sock=self.socket, msg=weights_data)
 
     def receive_weights(self):
-        with open(f"{self.model_path}/model_fft_re.h5", "wb") as file:
-            data = recv_msg(sock=self.socket)
-            file.write(data)
-        self.trainer.model_fft = load_model(f"{self.model_path}/model_fft_re.h5")
+        weights_data = recv_msg(sock=self.socket)
+        weights = pickle.loads(weights_data)
+        self.trainer.model_fft.set_weights(weights)
 
-    def run(self, rounds, epoch_per_round=1):
+    def run(self, rounds, epochs_per_round):
         for i in range(rounds):
             print(f"Round {i}")
-            self.train_round(epochs=epoch_per_round)
+            self.train_round(epochs=epochs_per_round)
             self.send_weights()
             self.receive_weights()
-        self.trainer.evaluation()
+        self.trainer.save_models(self.model_path)
+        self.trainer.evaluate(show_all=True)
 
 
 if __name__ == '__main__':
-    os.environ['CUDA_VISIBLE_DEVICES'] = '-1'  # disable GPU usage
-
-    trainer = TrainingWorker(server_ip_port=c.SERVER_IP_PORT,
-                             data_path=f"data/{c_client['DATASET_PATH']}_10.csv",  # todo:fix
+    # print all environment variables
+    print(f"TRAINING_WORKER: Starting as {os.environ.get('CLIENT_NAME')} ")
+    trainer = TrainingWorker(connect_ip_port=c.CONNECT_IP_PORT,
+                             data_path=c_client['DATASET_PATH'],
                              data_cols=c_client['DATASET_COLUMNS'],
-                             model_path=c_client['MODEL_PATH'])
-    trainer.run(rounds=c.EPOCHS)
+                             model_path=c_client['MODEL_PATH'].replace('model/', 'model/federated/'))
+    trainer.run(rounds=c.EPOCHS, epochs_per_round=1)
 

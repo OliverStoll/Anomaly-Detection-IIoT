@@ -159,14 +159,13 @@ class Resampler:
                 self.resample_csv(file_path=f"{self.directory_path}/{file.replace('_full.csv', '')}")
 
     def resample_csv(self, file_path):
-        """
-        Resample data from a csv file to a new sampling rate.
-
-        :param new_sampling_rate: number of samples to resample to
-        """
 
         # load data from file as dataframe
         df = pd.read_csv(f"{file_path}_full.csv")
+
+        # drop the ending rows not dividable by original sampling rate
+        if 'kbm' in file_path:
+            df = df.iloc[:-(len(df) % self.old_sampling_rate)]
 
         # delete resample file if another already exists
         save_path = f"{file_path}_{self.new_sampling_rate}.csv"
@@ -174,52 +173,23 @@ class Resampler:
             print("Delete old")
             os.remove(save_path)
 
-        # get the number of samples in the data and the column names
-        num_samples = len(df) / self.old_sampling_rate
-        column_names = df.columns.values.tolist()
+        temp_df = df.iloc[:,:-1]
+        factor = 5
+        avg_df = temp_df.groupby(df.index // factor)
+        avg_df = avg_df.mean()
+        print(avg_df)
 
-        # drop the ending rows not dividable by original sampling rate
-        print(len(df) % self.old_sampling_rate)
-        if 'kbm' in file_path:
-            df = df.iloc[:-(len(df) % self.old_sampling_rate)]
-        list_samples_df = np.array_split(df, num_samples)
-
-        print(int(len(df) / (self.old_sampling_rate * 100)) * '█')
-
-        # iterate over all samples
-        counter = 0
-        for df_sample in list_samples_df:
-            counter += 1
-            if counter % 100 == 0:
-                print('█', end='')
-
-            # split the sample dataframe into as many chunks as the new sampling rate
-            dfs = np.array_split(df_sample, self.new_sampling_rate)
-            for df_chunk in dfs:
-                # reset index of the chunk
-                df_chunk.reset_index(drop=True, inplace=True)
-                if self.feature_cols_tuple is None:
-                    df_features_chunk = df_chunk.iloc[:, :-1]
-                else:
-                    df_features_chunk = df_chunk.iloc[:, self.feature_cols_tuple[0]:self.feature_cols_tuple[1]]
-                # take the mean of each chunk for downsampling and save it to the new file
-                mean_abs = np.array(df_features_chunk.abs().mean())
-                new_sample = pd.DataFrame(mean_abs.reshape(1, -1))
-                new_sample['time_sec'] = df_chunk['time_sec'][0]
-                new_sample.to_csv(save_path, mode='a', index=False, header=False)
-
-        df = pd.read_csv(save_path, header=None)
-        df.columns = column_names[self.feature_cols_tuple[0]:self.feature_cols_tuple[1]] + ['time_sec']
-        print(df)
-        df.to_csv(save_path, index=False)
+        avg_df.to_csv(save_path, index=False)
 
 
-def _resample_all_to_defaults():
-    for i in [30, 100, 400]:
+def _resample_all_to_defaults(resample_rates):
+    for i in resample_rates:
         # Resampler(directory_path='data/kbm', new_sampling_rate=i, feature_cols_tuple=(2, 6)).resample_all_csv_in_directory()
-        Resampler(directory_path='data/bearing', new_sampling_rate=i, feature_cols_tuple=(0, 4)
+        Resampler(directory_path='data/bearing',
+                  new_sampling_rate=i,
+                  feature_cols_tuple=(0, 4)
                   ).resample_all_csv_in_directory()
 
 
 if __name__ == '__main__':
-    _resample_all_to_defaults()
+    _resample_all_to_defaults(resample_rates=[4096])

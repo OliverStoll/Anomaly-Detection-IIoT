@@ -10,13 +10,13 @@ from tensorboard.plugins.hparams import api as hp
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from io import StringIO
 
-from evaluation import *  # evaluate_model_lstm, evaluate_model_fft, find_timestretches_from_indexes
+from plotting import *  # evaluate_model_lstm, evaluate_model_fft, find_timestretches_from_indexes
 from models import lstm_autoencoder_model, fft_autoencoder_model
 from util.calculations import *
 from util.callbacks import scheduler  # , tensor_callback
 from util.config import c, c_client
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '-1'  # disable GPU usage (IIoT)
+# os.environ['CUDA_VISIBLE_DEVICES'] = '-1'  # disable GPU usage (IIoT)
 
 
 class Training:
@@ -60,7 +60,11 @@ class Training:
         """
 
         # read the data from the csv file
-        df = pd.read_csv(f"{self.data_path}_{self.split_size}.csv", usecols=self.data_columns)
+        path = f"{self.data_path}_{self.split_size}.csv"
+        if self.split_size == 20480 or self.split_size == 800:
+            path = f"{self.data_path}_full.csv"  # for the full dataset
+
+        df = pd.read_csv(path, usecols=self.data_columns)
 
         # drop the last rows that are not a full split anymore
         if len(df) % self.split_size != 0:
@@ -176,13 +180,68 @@ class Training:
         self.history_fft['loss'] += _history_fft['loss']
         self.history_fft['val_loss'] += _history_fft['val_loss']
 
-    def calculate_anomaly_scores(self):
+    def evaluate(self, show_all=False, show_infotable=False, show_anom_scores=False, show_preds=False, show_roc=False):
+        """
+        Evaluate the models seperately.
+
+        This is done by functionality in evaluation.py
+        """
+
+        # calculate the anomaly scores
+        self._calculate_anomaly_scores()
+
+        # plot general information
+        general_plotter = MiscPlotter(trainer=self)
+        general_plotter.plot_losses(ylim=c.PLOT_YLIM_LOSSES)
+        if show_infotable or show_all:
+            general_plotter.plot_infotable()
+        if show_anom_scores or show_all:
+            general_plotter.plot_anomaly_scores()
+
+        # plot the ROC curve and calculate optimal thresholds by checking many possible
+        mses = [self.mse_lstm, self.mse_fft]
+        thresholds = [c.THRESHOLD_LSTM, c.THRESHOLD_FFT]
+
+        print("\nCalculating AUC...")
+        roc_plotter = RocPlotter()
+        for i in range(2):
+            threshold_factors = np.arange(2, 0, -0.005)
+            fps, tps, auc, f1_max = self._calculate_auc(mse=mses[i],
+                                                        threshold=thresholds[i],
+                                                        threshold_factors=threshold_factors)
+            threshold = round(threshold_factors[f1_max[1]], 6)
+            thresholds[i] = threshold * thresholds[i]
+            roc_plotter.plot_single_roc(fps=fps, tps=tps, auc=auc, f1_max=f1_max)
+        print(f"Thresholds: {thresholds}")
+        if show_roc or show_all:
+            roc_plotter.show()
+
+        # get all time-periods where the anomaly score is above the threshold
+        both_anomaly_times = []
+        for i in range(2):
+            anomaly_indexes = np.where(mses[i] > thresholds[i])[0]
+            anomaly_sample_indexes = np.unique(anomaly_indexes // self.split_size)
+            anomaly_times = find_timetuples_from_indexes(indexes=anomaly_sample_indexes,
+                                                         max_index=self.data_3d.shape[0])
+            both_anomaly_times.append(anomaly_times)
+
+        if show_preds or show_all:
+            PredictionsPlotter(file_path=f"{self.data_path}_{self.split_size}.csv",
+                               sub_experiment_index=self.sub_experiment_index,
+                               ylim=c.PLOT_YLIM_VIBRATION,
+                               features=len(self.data_columns),
+                               anomalies_real=anomalies[self.dataset_name][self.experiment_name],
+                               anomalies_pred_lstm=both_anomaly_times[0],
+                               anomalies_pred_fft=both_anomaly_times[1]
+                               ).plot_experiment()
+
+    def _calculate_anomaly_scores(self):
         self.data_pred_2d = self.model_lstm.predict(self.data_3d).reshape((-1, self.data_3d.shape[2]))
         self.fft_pred_2d = self.model_fft.predict(self.fft_3d).reshape((-1, self.fft_3d.shape[2]))
         self.mse_lstm = ((self.data_2d - self.data_pred_2d) ** 2).mean(axis=1)
         self.mse_fft = ((self.fft_2d - self.fft_pred_2d) ** 2)
 
-    def calculate_auc(self, mse, threshold, threshold_factors):
+    def _calculate_auc(self, mse, threshold, threshold_factors):
 
         all_anomaly_indexes = []
         fps = []
@@ -214,65 +273,14 @@ class Training:
 
         return fps, tps, auc, f1_max
 
-    def evaluation(self, show_infotable=False, show_anom_scores=False, show_preds=False, show_roc=False):
-        """
-        Evaluate the models seperately.
 
-        This is done by functionality in evaluation.py
-        """
-
-        # plot losses
-        plot_losses(history_lstm=self.history_lstm, history_fft=self.history_fft, ylim=0.002)
-
-        # evaluate the models seperately
-        if show_infotable:
-            plot_infotable(trainer=self)
-
-        if show_anom_scores:
-            plot_anomaly_scores(mse_lstm=self.mse_lstm, mse_fft=self.mse_fft)
-
-        # plot the ROC curve and calculate optimal thresholds by checking many possible
-        mses = [self.mse_lstm, self.mse_fft]
-        thresholds = [c.THRESHOLD_LSTM, c.THRESHOLD_FFT]
-
-        print("\nCalculating AUC...")
-        roc_plotter = RocPlotter()
-        for i in range(2):
-            threshold_factors = np.arange(2, 0, -0.005)
-            fps, tps, auc, f1_max = self.calculate_auc(mse=mses[i],
-                                                       threshold=thresholds[i],
-                                                       threshold_factors=threshold_factors)
-            threshold = round(threshold_factors[f1_max[1]], 6)
-            thresholds[i] = threshold * thresholds[i]
-            roc_plotter.plot_single_roc(fps=fps, tps=tps, auc=auc, f1_max=f1_max)
-        print(f"Thresholds: {thresholds}")
-        if show_roc:
-            roc_plotter.show()
-
-        # get all time-periods where the anomaly score is above the threshold
-        both_anomaly_times = []
-        for i in range(2):
-            anomaly_indexes = np.where(mses[i] > thresholds[i])[0]
-            anomaly_sample_indexes = np.unique(anomaly_indexes // self.split_size)
-            anomaly_times = find_timetuples_from_indexes(indexes=anomaly_sample_indexes,
-                                                         max_index=self.data_3d.shape[0])
-            both_anomaly_times.append(anomaly_times)
-
-        if show_preds:
-            PredictionsPlotter(file_path=f"{self.data_path}_{self.split_size}.csv",
-                               sub_experiment_index=self.sub_experiment_index,
-                               ylim=c.PLOT_YLIM,
-                               features=len(self.data_columns),
-                               anomalies_real=anomalies[self.dataset_name][self.experiment_name],
-                               anomalies_pred_lstm=both_anomaly_times[0],
-                               anomalies_pred_fft=both_anomaly_times[1]
-                               ).plot_experiment()
-
-
-def _run(train=True):
-    # experiment, data_columns = "bearing/experiment-2", [0]
-    dataset_path, data_columns, model_path = c.CLIENT_1['DATASET_PATH'], c.CLIENT_1['DATASET_COLUMNS'], c.CLIENT_1[
+def evaluate_model(train, model_path=None):
+    """ Run the experiment """
+    dataset_path, data_columns, config_model_path = c.CLIENT_1['DATASET_PATH'], c.CLIENT_1['DATASET_COLUMNS'], c.CLIENT_1[
         'MODEL_PATH']
+
+    if model_path is None:
+        model_path = config_model_path
 
     # initialize the trainer and train/infere the model
     trainer = Training(data_path=dataset_path, data_columns=data_columns)
@@ -282,13 +290,14 @@ def _run(train=True):
     else:
         trainer.load_models(dir_path=model_path)
 
-    trainer.calculate_anomaly_scores()
-    trainer.evaluation(show_preds=True, show_roc=True)
+    trainer.evaluate(show_preds=True, show_roc=True)
 
 
 if __name__ == '__main__':
 
     trainer = Training(data_path=c.CLIENT_1['DATASET_PATH'], data_columns=c.CLIENT_1['DATASET_COLUMNS'])
-    trainer.tune_models()
-    # trainer.train_models(epochs=c.EPOCHS)
-    # trainer.evaluation(show_preds=True, show_roc=True)
+    # trainer.tune_models()
+    trainer.train_models(epochs=10)
+    trainer.save_models(dir_path=c.CLIENT_1['MODEL_PATH'].replace('model/', 'model/central/'))
+    # trainer.load_models(dir_path="model/bearing/sabtain_2")
+    trainer.evaluate(show_preds=True, show_roc=True, show_infotable=True, show_anom_scores=True)

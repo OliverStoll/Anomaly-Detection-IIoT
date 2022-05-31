@@ -19,18 +19,22 @@ def lstm_autoencoder_model(hp=None):
     :return: the initialized model
     """
 
-    # hyperparameter
-    learning_rate = hp.Choice('learning_rate', [3e-2, 1e-2, 3e-2, 1e-3, 3e-4]) if hp else c.LEARNING_RATE
-    outer_layer_size = 512  # hp.Choice('outer_layer_size', [32, 64, 128, 256, 512]) if hp else c.LAYER_SIZES[0]
-    layers_amount = 1  # hp.Choice('layers_amount', [1, 2, 3, 4]) if hp else len(c.LAYER_SIZES)
-    hidden_size = 6  # hp.Int('hidden_size', 2, 12, step=2) if hp else 6
+    # default hyperparameters
+    learning_rate = c.LEARNING_RATE
+    outer_layer_size = c.OUTER_LAYER_SIZE
+    layers_amount = c.LAYER_AMOUNT
+    hidden_size = c.HIDDEN_LAYER_SIZE
+
+    # hyperparameter tuning
+    if hp:
+        learning_rate = hp.Choice('learning_rate', [3e-2, 1e-2, 3e-2, 1e-3, 3e-4])
+        outer_layer_size = hp.Choice('outer_layer_size', [32, 64, 128, 256, 512])
+        layers_amount = hp.Choice('layers_amount', [1, 2, 3, 4])
+        print(f"HYPERPARAMETERS:lstm;{learning_rate};{outer_layer_size};{layers_amount}")
 
     # calculate the layer sizes from hyperparameters
     layer_shrinking_factor = outer_layer_size / hidden_size
     layer_sizes = [int(hidden_size * layer_shrinking_factor ** ((i+1)/layers_amount)) for i in range(layers_amount)]
-
-    print("HYPER-NAMES: type, learning_rate, outer_layer_size, layers_amount")
-    print(f"HYPERPARAMETERS:lstm;{learning_rate};{outer_layer_size};{layers_amount}")
 
     # optimizer
     optimizer = optimizers.Adam(learning_rate=learning_rate, clipnorm=1.0, clipvalue=0.5)
@@ -43,23 +47,23 @@ def lstm_autoencoder_model(hp=None):
 
     # create the encoder LSTM layers
     for layer_size in layer_sizes[::-1]:
-        x = LSTM(layer_size, activation='relu', return_sequences=True,
+        x = LSTM(layer_size, activation='tanh', return_sequences=True,
                  kernel_regularizer=l2(1e-7), activity_regularizer=l2(1e-7))(x)
 
     # create the last encoder layer with hp_hidden_size
-    x = LSTM(hidden_size, activation='relu', return_sequences=False,
+    x = LSTM(hidden_size, activation='tanh', return_sequences=False,
              kernel_regularizer=l2(1e-7), activity_regularizer=l2(1e-7))(x)
 
     # pass the encoded data through a dense layer to the decoder
     x = RepeatVector(timesteps)(x)
 
     # create the first decoder layer with hp_hidden_size
-    x = LSTM(hidden_size, activation='relu', return_sequences=True,
+    x = LSTM(hidden_size, activation='tanh', return_sequences=True,
              kernel_regularizer=l2(1e-7), activity_regularizer=l2(1e-7))(x)
 
     # create the decoder LSTM layers
     for layer_size in layer_sizes:
-        x = LSTM(layer_size, activation='relu', return_sequences=True,
+        x = LSTM(layer_size, activation='tanh', return_sequences=True,
                  kernel_regularizer=l2(1e-7), activity_regularizer=l2(1e-7))(x)
 
     # create the plots layer
@@ -80,23 +84,20 @@ def fft_autoencoder_model(hp=None):
 
     # default hyperparameters
     learning_rate = c.LEARNING_RATE
-    outer_layer_size = c.LAYER_SIZES[0]
-    layers_amount = len(c.LAYER_SIZES)
-    hidden_size = 6  # hp.Int('hidden_size', 1, 16, step=1) if hp else 6
+    outer_layer_size = c.OUTER_LAYER_SIZE
+    layers_amount = c.LAYER_AMOUNT
+    hidden_size = 6
 
     # hyperparameter tuning
     if hp:
-        learning_rate = hp.Choice('learning_rate', [3e-2, 1e-2, 3e-2, 1e-3, 3e-4]) if hp else c.LEARNING_RATE
-        outer_layer_size = hp.Choice('outer_layer_size', [32, 64, 128, 256, 512]) if hp else c.LAYER_SIZES[0]
-        layers_amount = hp.Choice('layers_amount', [1, 2, 3, 4]) if hp else len(c.LAYER_SIZES)
-
+        learning_rate = hp.Choice('learning_rate', [3e-2, 1e-2, 3e-2, 1e-3, 3e-4])
+        outer_layer_size = hp.Choice('outer_layer_size', [32, 64, 128, 256, 512])
+        layers_amount = hp.Choice('layers_amount', [1, 2, 3, 4])
+        print(f"HYPERPARAMETERS:fft;{learning_rate};{outer_layer_size};{layers_amount}")
 
     # calculate the layer sizes from hyperparameters
     layer_shrinking_factor = outer_layer_size / hidden_size
     layer_sizes = [int(hidden_size * layer_shrinking_factor ** ((i + 1) / layers_amount)) for i in range(layers_amount)]
-
-    print("HYPER-NAMES: type, learning_rate, hidden_size,")
-    print(f"HYPERPARAMETERS:fft;{learning_rate};{outer_layer_size};{layers_amount}")
 
     # optimizer
     optimizer = optimizers.Adam(learning_rate=learning_rate, clipnorm=1.0, clipvalue=0.5)
