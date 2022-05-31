@@ -274,23 +274,19 @@ class Training:
         return fps, tps, auc, f1_max
 
 
-def evaluate_model(train, model_path=None):
+def evaluate_model(load_path=None):
     """ Run the experiment """
-    dataset_path, data_columns, config_model_path = c.CLIENT_1['DATASET_PATH'], c.CLIENT_1['DATASET_COLUMNS'], c.CLIENT_1[
-        'MODEL_PATH']
+    dataset_path, data_columns = c.CLIENT_1['DATASET_PATH'], c.CLIENT_1['DATASET_COLUMNS']
 
-    if model_path is None:
-        model_path = config_model_path
-
-    # initialize the trainer and train/infere the model
+    # initialize the trainer and train/infer the model
     trainer = Training(data_path=dataset_path, data_columns=data_columns)
-    if train:
-        trainer.train_models(epochs=c.EPOCHS)
-        trainer.save_models(dir_path=model_path)
-    else:
-        trainer.load_models(dir_path=model_path)
 
-    trainer.evaluate(show_preds=True, show_roc=True)
+    if load_path:
+        trainer.load_models(dir_path=load_path)
+    else:
+        trainer.train_models(epochs=c.EPOCHS)
+
+    trainer.evaluate(show_all=True)
 
 
 if __name__ == '__main__':
