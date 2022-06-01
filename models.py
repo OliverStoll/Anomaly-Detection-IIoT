@@ -5,7 +5,7 @@ from keras.layers import Input, Dense, Flatten, Reshape, LSTM, TimeDistributed, 
 from keras.models import Model
 from keras.regularizers import l2
 
-from util.config import c, c_client
+from util.config import c, client_config
 
 
 def lstm_autoencoder_model(hp=None):
@@ -41,7 +41,7 @@ def lstm_autoencoder_model(hp=None):
 
     # create the input layer
     timesteps = c.SPLIT
-    num_features = len(c_client['DATASET_COLUMNS'])
+    num_features = len(client_config['DATASET_COLUMNS'])
     inputs = Input(shape=(timesteps, num_features))
     x = inputs
 
@@ -104,7 +104,7 @@ def fft_autoencoder_model(hp=None):
 
     # create the input layer
     timesteps = c.SPLIT
-    num_features = len(c_client['DATASET_COLUMNS'])
+    num_features = len(client_config['DATASET_COLUMNS'])
     inputs = Input(shape=(timesteps, num_features))
     x = Flatten()(inputs)
 

@@ -13,11 +13,11 @@ LAYER_AMOUNT: 2
 LOSS_FN: mse
 # data
 SPLIT: 30
-VAL_SPLIT: 0.1
-TRAIN_SPLIT: 0.8
+VAL_SPLIT: 0.08
+TRAIN_SPLIT: 0.7
 # evaluation
-THRESHOLD_LSTM: 0.0011
-THRESHOLD_FFT: 0.011
+THRESHOLD_LSTM: 0.001
+THRESHOLD_FFT: 0.01
 PLOT_YLIM_VIBRATION: 1
 PLOT_YLIM_LOSSES: 0.01
 PLOT_SPLITS: False
@@ -26,9 +26,9 @@ PLOT_SPLITS: False
 CLIENT_1:
     DATASET_PATH: data/bearing/experiment-2
     DATASET_COLUMNS: [0]
-    MODEL_PATH: model/bearing/experiment-2/bearing-0
+    MODEL_PATH: bearing_experiment-2/bearing-0
 
 CLIENT_2:
     DATASET_PATH: data/bearing/experiment-2
     DATASET_COLUMNS: [1]
-    MODEL_PATH: model/bearing/experiment-2/bearing-1
+    MODEL_PATH: bearing_experiment-2/bearing-1

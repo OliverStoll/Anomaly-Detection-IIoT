@@ -3,7 +3,6 @@ from keras.models import load_model
 import numpy as np
 import pickle
 
-from training import evaluate_model
 from models import fft_autoencoder_model
 
 from util.socket_functionality import send_msg, recv_msg
@@ -88,7 +87,7 @@ class AggregationWorker:
 if __name__ == '__main__':
     print("Start of Aggregator")
     aggregator = AggregationWorker(ip_port_tuple=c.LISTEN_IP_PORT,
-                                   model_path=c.CLIENT_1['MODEL_PATH'].replace('model/', '/model/federated'),
+                                   model_path=f"model/federated/aggregated/{c.CLIENT_1['MODEL_PATH']}",
                                    clients_amount=c.CLIENT_NUM,
                                    max_iterations=100)
     aggregator.run()

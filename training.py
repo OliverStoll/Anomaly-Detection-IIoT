@@ -14,7 +14,7 @@ from plotting import *  # evaluate_model_lstm, evaluate_model_fft, find_timestre
 from models import lstm_autoencoder_model, fft_autoencoder_model
 from util.calculations import *
 from util.callbacks import scheduler  # , tensor_callback
-from util.config import c, c_client
+from util.config import c, client_config
 
 # os.environ['CUDA_VISIBLE_DEVICES'] = '-1'  # disable GPU usage (IIoT)
 
@@ -180,7 +180,7 @@ class Training:
         self.history_fft['loss'] += _history_fft['loss']
         self.history_fft['val_loss'] += _history_fft['val_loss']
 
-    def evaluate(self, show_all=False, show_infotable=False, show_anom_scores=False, show_preds=False, show_roc=False):
+    def evaluate(self, show_all=False, show_infos=False, show_as=False, show_preds=False, show_roc=False, show_losses=False):
         """
         Evaluate the models seperately.
 
@@ -192,10 +192,11 @@ class Training:
 
         # plot general information
         general_plotter = MiscPlotter(trainer=self)
-        general_plotter.plot_losses(ylim=c.PLOT_YLIM_LOSSES)
-        if show_infotable or show_all:
+        if show_losses or show_all:
+            general_plotter.plot_losses(ylim=c.PLOT_YLIM_LOSSES)
+        if show_infos or show_all:
             general_plotter.plot_infotable()
-        if show_anom_scores or show_all:
+        if show_as or show_all:
             general_plotter.plot_anomaly_scores()
 
         # plot the ROC curve and calculate optimal thresholds by checking many possible
@@ -205,7 +206,7 @@ class Training:
         print("\nCalculating AUC...")
         roc_plotter = RocPlotter()
         for i in range(2):
-            threshold_factors = np.arange(2, 0, -0.005)
+            threshold_factors = np.arange(10, 0, -0.01)
             fps, tps, auc, f1_max = self._calculate_auc(mse=mses[i],
                                                         threshold=thresholds[i],
                                                         threshold_factors=threshold_factors)
@@ -274,26 +275,11 @@ class Training:
         return fps, tps, auc, f1_max
 
 
-def evaluate_model(load_path=None):
-    """ Run the experiment """
-    dataset_path, data_columns = c.CLIENT_1['DATASET_PATH'], c.CLIENT_1['DATASET_COLUMNS']
-
-    # initialize the trainer and train/infer the model
-    trainer = Training(data_path=dataset_path, data_columns=data_columns)
-
-    if load_path:
-        trainer.load_models(dir_path=load_path)
-    else:
-        trainer.train_models(epochs=c.EPOCHS)
-
-    trainer.evaluate(show_all=True)
-
-
 if __name__ == '__main__':
 
     trainer = Training(data_path=c.CLIENT_1['DATASET_PATH'], data_columns=c.CLIENT_1['DATASET_COLUMNS'])
     # trainer.tune_models()
     trainer.train_models(epochs=10)
-    trainer.save_models(dir_path=c.CLIENT_1['MODEL_PATH'].replace('model/', 'model/central/'))
+    trainer.save_models(dir_path=c.CLIENT_1['MODEL_PATH'])
     # trainer.load_models(dir_path="model/bearing/sabtain_2")
-    trainer.evaluate(show_preds=True, show_roc=True, show_infotable=True, show_anom_scores=True)
+    trainer.evaluate(show_preds=True, show_roc=True, show_infos=True, show_as=True)

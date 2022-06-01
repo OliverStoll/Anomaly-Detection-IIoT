@@ -1,0 +1,11 @@
+# training
+EPOCHS: 100
+BATCH_SIZE: 64
+LEARNING_RATE: 0.001
+# data
+TRAIN_SPLIT: 0.7
+VAL_SPLIT: 0.08
+# experiment
+DATASET_PATH: 'data/2nd_test'
+MODEL_PATH: 'bearing_experiment-2/bearing-0'
+DATASET_COLUMN: 0

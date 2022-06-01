@@ -19,10 +19,10 @@ bearing:
     bearing-2: [ [0.840, 1] ]
     bearing-3: [ [0.665, 1] ]
   experiment-2:
-    bearing-0: [ [0.550, 1] ]
+    bearing-0: [ [0.710, 1] ]
     bearing-1: [ [0.980, 1] ]
     bearing-2: [ ]
-    bearing-3: [ [0.98, 1] ]
+    bearing-3: [ [0.975, 1] ]
   experiment-3:
     bearing-0: [ [0.98, 1] ]
     bearing-1: [ [0.975, 1] ]

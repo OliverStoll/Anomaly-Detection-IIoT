@@ -6,7 +6,7 @@ from keras.models import load_model
 
 from training import Training
 from util.socket_functionality import send_msg, recv_msg
-from util.config import c, c_client
+from util.config import c, client_config
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
@@ -22,7 +22,7 @@ class TrainingWorker:
 
     def __init__(self, connect_ip_port: (str, int), data_path: str, data_cols: list, model_path: str):
         self.trainer = Training(data_path=data_path, data_columns=data_cols)
-        self.model_path = f"{model_path}/client-{random.randint(100, 1000)}"
+        self.model_path = model_path
         self.epoch = 0
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.connect((connect_ip_port[0], connect_ip_port[1]))
@@ -56,8 +56,8 @@ if __name__ == '__main__':
     # print all environment variables
     print(f"TRAINING_WORKER: Starting as {os.environ.get('CLIENT_NAME')} ")
     trainer = TrainingWorker(connect_ip_port=c.CONNECT_IP_PORT,
-                             data_path=c_client['DATASET_PATH'],
-                             data_cols=c_client['DATASET_COLUMNS'],
-                             model_path=c_client['MODEL_PATH'].replace('model/', 'model/federated/'))
+                             data_path=client_config['DATASET_PATH'],
+                             data_cols=client_config['DATASET_COLUMNS'],
+                             model_path=f"model/federated/{client_config['MODEL_PATH']}")
     trainer.run(rounds=c.EPOCHS, epochs_per_round=1)
 
