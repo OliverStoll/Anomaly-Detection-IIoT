@@ -1,34 +1,47 @@
 # tcp
 CONNECT_IP_PORT: ['localhost', 55555]
 LISTEN_IP_PORT: ['0.0.0.0', 55555]
-CLIENT_NUM: 2
+NUM_CLIENTS: 2
 # training
-EPOCHS: 100
+EPOCHS: 50
 BATCH_SIZE: 64
-LEARNING_RATE: 0.001
+
 LR_DECAY: 0.01
-OUTER_LAYER_SIZE: 128
-HIDDEN_LAYER_SIZE: 8
-LAYER_AMOUNT: 2
-LOSS_FN: mse
+LSTM:
+    LEARNING_RATE: 0.001
+    OUTER_LAYER_SIZE: 512
+    HIDDEN_LAYER_SIZE: 8
+    LAYER_AMOUNT: 1
+FFT:
+    LEARNING_RATE: 0.001
+    OUTER_LAYER_SIZE: 128
+    HIDDEN_LAYER_SIZE: 8
+    LAYER_AMOUNT: 2
 # data
-SPLIT: 30
-VAL_SPLIT: 0.08
+SPLIT: 10
 TRAIN_SPLIT: 0.7
+VAL_SPLIT: 0.08
 # evaluation
-THRESHOLD_LSTM: 0.001
+THRESHOLD_LSTM: 0.01
 THRESHOLD_FFT: 0.01
 PLOT_YLIM_VIBRATION: 1
-PLOT_YLIM_LOSSES: 0.01
+PLOT_YLIM_LOSSES: 1
 PLOT_SPLITS: False
 
 # experiment
-CLIENT_1:
+CLIENT_0:
     DATASET_PATH: data/bearing/experiment-2
     DATASET_COLUMNS: [0]
     MODEL_PATH: bearing_experiment-2/bearing-0
-
-CLIENT_2:
+CLIENT_1:
     DATASET_PATH: data/bearing/experiment-2
     DATASET_COLUMNS: [1]
     MODEL_PATH: bearing_experiment-2/bearing-1
+CLIENT_2:
+    DATASET_PATH: data/bearing/experiment-2
+    DATASET_COLUMNS: [2]
+    MODEL_PATH: bearing_experiment-2/bearing-2
+CLIENT_3:
+    DATASET_PATH: data/bearing/experiment-2
+    DATASET_COLUMNS: [3]
+    MODEL_PATH: bearing_experiment-2/bearing-3

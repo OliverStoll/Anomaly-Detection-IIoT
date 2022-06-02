@@ -97,16 +97,51 @@ def get_tp_fp_fn_tn_from_indexes(pred_indexes, max_index, labels):
     return tp, fp, fn, tn
 
 
-def calculate_precision_recall_f1(tp, fp, fn, tn):
+def calculate_precision_recall_f1(tp, fp, fn):
     """
     Function that calculates the precision, recall and f1 score.
     """
 
     precision = tp / (tp + fp) if tp > 0 else 0
     recall = tp / (tp + fn) if tp > 0 else 0
-    f1 = 2 * precision * recall / (precision + recall)
+    f1 = 2 * precision * recall / (precision + recall) if precision > 0 or recall > 0 else 0
 
     return precision, recall, f1
+
+
+def calculate_auc(trainer, mse):
+
+    all_anomaly_indexes = []
+    fps = []
+    tps = []
+    f1_max = (0, 0)
+
+    mse_sorted = np.sort(mse)
+
+    for threshold in mse_sorted:
+        anomaly_indexes = np.where(mse > threshold)[0]
+        all_anomaly_indexes.append((anomaly_indexes, threshold))
+
+    for i, (indexes, threshold) in enumerate(all_anomaly_indexes):
+        tp, fp, fn, tn = get_tp_fp_fn_tn_from_indexes(pred_indexes=indexes,
+                                                      max_index=trainer.data_3d.shape[0],
+                                                      labels=trainer.labels)
+        precision, recall, f1 = calculate_precision_recall_f1(tp=tp, fp=fp, fn=fn)
+        if f1 > f1_max[0]:
+            f1_max = (f1, i, threshold)
+        fps.append(fp)
+        tps.append(tp)
+    p = tp + fn
+    n = fp + tn
+
+    # divide all the tps and fps by p and n
+    tps = np.array(tps) / p
+    fps = np.array(fps) / n
+
+    # plot the ROC curve from the coordinates
+    auc = np.trapz(y=tps, x=fps)
+
+    return fps, tps, auc, f1_max
 
 
 def calculate_fft_from_data(data_3d):

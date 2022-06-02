@@ -38,7 +38,7 @@ from sklearn.metrics import precision_recall_fscore_support, f1_score
 # In[3]:
 
 import yaml
-config = yaml.safe_load(open('../files/config_baseline.yaml'))
+config = yaml.safe_load(open('../configs/config_baseline.yaml'))
 
 # data
 DATASET_PATH = config['DATASET_PATH']
@@ -57,7 +57,6 @@ LEARNING_RATE = config['LEARNING_RATE']
 
 def readData(dataDir, setName, set1=False):
     files = os.listdir(dataDir)
-    print("Number of files:", len(files))
 
     bearing1 = list()
     bearing2 = list()
@@ -88,8 +87,6 @@ def readData(dataDir, setName, set1=False):
 
 
 data = readData(DATASET_PATH, "S2")
-for bearing in data:  # edited error
-    print(bearing, len(data[bearing]))
 
 # # split data into training and test
 
@@ -98,12 +95,10 @@ for bearing in data:  # edited error
 
 bearing1 = pd.concat(data[f"S2_bearing-{DATASET_COLUMN + 1}"])
 split_len = int(len(bearing1) * TRAIN_SPLIT)
-print(split_len)
 train = bearing1.iloc[0:split_len]
 test = bearing1.iloc[split_len:]
 train.reset_index(drop=True, inplace=True)
 test.reset_index(drop=True, inplace=True)
-print(train.shape, test.shape)
 
 # In[7]:
 
@@ -112,7 +107,6 @@ print(train.shape, test.shape)
 scaler = preprocessing.StandardScaler()
 train_scaled = pd.DataFrame(scaler.fit_transform(train))
 test_scaled = pd.DataFrame(scaler.transform(test))
-print(train_scaled.shape, test_scaled.shape)
 
 
 # # prepare data for LSTM
@@ -186,31 +180,23 @@ X_test = X_test_lstm.reshape(X_test_lstm.shape[0], lookback, n_features)
 def plot_and_evaluate(lstm_autoencoder):
 
     X_pred_train = lstm_autoencoder.predict(np.array(X_train))
-    X_pred_train = pd.DataFrame(flatten(X_pred_train))
-
-    scored = pd.DataFrame(index=X_pred_train.index)
-    scored['RE'] = np.mean(np.abs(X_pred_train - flatten(X_train)), axis=1)
-    plt.figure()
-    sns.distplot(scored['RE'],
-                 bins=15,
-                 kde=True,
-                 color='blue')
-    plt.title("Training Reconstruction Error")
-
-    scored.describe()
-
     X_pred_test = lstm_autoencoder.predict(np.array(X_test))
+    # concat both predictions
+    x_pred = np.concatenate((X_pred_train, X_pred_test), axis=0)
+    print(x_pred.shape)
+    X_pred_train = pd.DataFrame(flatten(X_pred_train))
     X_pred_test = pd.DataFrame(flatten(X_pred_test))
+    x_pred = pd.DataFrame(flatten(x_pred))
 
+    # concatenate X_train and X_test
+    # X_full = np.concatenate(flatten(X_train), flatten(X_test))
 
-    scored_test = pd.DataFrame(index=X_pred_test.index)
-    scored_test['RE'] = np.mean(np.abs(X_pred_test - flatten(X_test)), axis=1)  # corrected error
-    plt.figure()
-    sns.distplot(scored_test['RE'], bins=15, kde=True, color='blue')
-    plt.title("Reconstruction loss Bearing 1 (Test set)")
-    plt.show()
-
-
+    scored_test = pd.DataFrame()
+    mse_train = np.mean(np.abs(X_pred_train - flatten(X_train)), axis=1)
+    mse_test = np.mean(np.abs(X_pred_test - flatten(X_test)), axis=1)
+    # concate mse_train and mse_test
+    mse = np.concatenate((mse_train, mse_test), axis=0)
+    scored_test['RE'] = mse  # corrected error
     scored_test['Threshold'] = 1.0
     scored_test['Anomaly'] = scored_test['RE'] > scored_test['Threshold']  # corrected error
 
@@ -219,4 +205,4 @@ def plot_and_evaluate(lstm_autoencoder):
     scored_test.plot(figsize=(16, 8), color=['blue', 'red'], title="Failure of Bearing 1 (Set-2)")
     plt.show()
 
-    return np.mean(np.abs(X_pred_train - flatten(X_train)), axis=1)
+    return mse

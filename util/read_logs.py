@@ -43,5 +43,40 @@ def plot_tuning_logs(path="hyper_tuning/tuning_log.txt"):
     plt.show()
 
 
+def plot_federated_logs(path="logs/bearing_experiment-2/1.txt"):
+
+
+    lstm_rounds = []
+    fft_rounds = []
+    lstm_val_losses = []
+
+
+    full_text = open(path, "r").read()
+
+    all_rounds = full_text.split("Round ")[1:]
+    lstm_rounds = [round.split("\n")[1] for round in all_rounds]
+    fft_rounds = [round.split("\n")[2] for round in all_rounds]
+
+    lstm_val_losses = [lstm_round.split('val_loss: ')[1].split(' -')[0] for lstm_round in lstm_rounds]
+    fft_val_losses = [fft_round.split('val_loss: ')[1].split(' -')[0] for fft_round in fft_rounds]
+
+    lstm_val_losses = [float(loss) for loss in lstm_val_losses]
+    fft_val_losses = [float(loss) for loss in fft_val_losses]
+
+    # Plot the figure.
+    plt.plot(lstm_val_losses, label="LSTM")
+    plt.plot(fft_val_losses, label="FFT")
+    plt.title("Validation Loss")
+    plt.xlabel("Round")
+    plt.ylabel("Validation Loss")
+    plt.legend()
+    plt.show()
+
+
+
+
+
+
+
 if __name__ == "__main__":
-    plot_tuning_logs()
+    plot_federated_logs()

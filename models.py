@@ -20,10 +20,10 @@ def lstm_autoencoder_model(hp=None):
     """
 
     # default hyperparameters
-    learning_rate = c.LEARNING_RATE
-    outer_layer_size = c.OUTER_LAYER_SIZE
-    layers_amount = c.LAYER_AMOUNT
-    hidden_size = c.HIDDEN_LAYER_SIZE
+    learning_rate = c.LSTM['LEARNING_RATE']
+    outer_layer_size = c.LSTM['OUTER_LAYER_SIZE']
+    layers_amount = c.LSTM['LAYER_AMOUNT']
+    hidden_size = c.LSTM['HIDDEN_LAYER_SIZE']
 
     # hyperparameter tuning
     if hp:
@@ -83,10 +83,10 @@ def fft_autoencoder_model(hp=None):
     """
 
     # default hyperparameters
-    learning_rate = c.LEARNING_RATE
-    outer_layer_size = c.OUTER_LAYER_SIZE
-    layers_amount = c.LAYER_AMOUNT
-    hidden_size = 6
+    learning_rate = c.FFT['LEARNING_RATE']
+    outer_layer_size = c.FFT['OUTER_LAYER_SIZE']
+    layers_amount = c.FFT['LAYER_AMOUNT']
+    hidden_size = c.FFT['HIDDEN_LAYER_SIZE']
 
     # hyperparameter tuning
     if hp:

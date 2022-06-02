@@ -22,25 +22,31 @@ class TrainingWorker:
 
     def __init__(self, connect_ip_port: (str, int), data_path: str, data_cols: list, model_path: str):
         self.trainer = Training(data_path=data_path, data_columns=data_cols)
+        self.trainer.verbose = 2
         self.model_path = model_path
         self.epoch = 0
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.connect((connect_ip_port[0], connect_ip_port[1]))
-        print(f"TRAININGWORKER: Connected to {connect_ip_port}")
 
     def train_round(self, epochs):
         self.trainer.train_models(epochs=epochs)  # TODO: check efficiency
         self.epoch += epochs
 
     def send_weights(self):
-        weights = self.trainer.model_fft.get_weights()
-        weights_data = pickle.dumps(weights)
-        send_msg(sock=self.socket, msg=weights_data)
+        weights_lstm = self.trainer.model_lstm.get_weights()
+        weights_fft = self.trainer.model_fft.get_weights()
+        weights_lstm_data = pickle.dumps(weights_lstm)
+        weights_fft_data = pickle.dumps(weights_fft)
+        send_msg(sock=self.socket, msg=weights_lstm_data)
+        send_msg(sock=self.socket, msg=weights_fft_data)
 
     def receive_weights(self):
-        weights_data = recv_msg(sock=self.socket)
-        weights = pickle.loads(weights_data)
-        self.trainer.model_fft.set_weights(weights)
+        weights_data_lstm = recv_msg(sock=self.socket)
+        weights_data_fft = recv_msg(sock=self.socket)
+        weights_lstm = pickle.loads(weights_data_lstm)
+        weights_fft = pickle.loads(weights_data_fft)
+        self.trainer.model_lstm.set_weights(weights_lstm)
+        self.trainer.model_fft.set_weights(weights_fft)
 
     def run(self, rounds, epochs_per_round):
         for i in range(rounds):
@@ -49,7 +55,7 @@ class TrainingWorker:
             self.send_weights()
             self.receive_weights()
         self.trainer.save_models(self.model_path)
-        self.trainer.evaluate(show_all=True)
+        # self.trainer.evaluate(show_all=True)
 
 
 if __name__ == '__main__':

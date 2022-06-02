@@ -9,6 +9,6 @@ ENV CONFIG_FILE config.yaml
 
 COPY . .
 
-RUN pip install --no-cache-dir -r files/requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
 CMD [ "python", "./worker_aggregation.py" ]

@@ -16,7 +16,7 @@ from util.config import c
 mpl.rcParams['agg.path.chunksize'] = 10000
 
 # load anomalies dict from anomalies.yaml
-anomalies = yaml.safe_load(open(f"files/anomalies.yaml"))
+anomalies = yaml.safe_load(open(f"configs/anomalies.yaml"))
 
 
 class MiscPlotter:
@@ -101,13 +101,13 @@ class MiscPlotter:
         # plot the mse of the lstm model
         ax[0].plot(mse_lstm)
         ax[0].set_title("LSTM Autoencoder Anomaly Score")
-        ax[0].set_ylim(0, 3 * c.THRESHOLD_LSTM)
+        ax[0].set_ylim(0, 6 * c.THRESHOLD_LSTM)
         ax[0].axhline(y=c.THRESHOLD_LSTM, color='r', linestyle='-')  # plot horizontal line at threshold
 
         # plot the mse of the fft model
         ax[1].plot(mse_fft)
         ax[1].set_title("FFT Autoencoder Anomaly Score")
-        ax[1].set_ylim(0, 3 * c.THRESHOLD_FFT)
+        ax[1].set_ylim(0, 6 * c.THRESHOLD_FFT)
         ax[1].axhline(y=c.THRESHOLD_FFT, color='r', linestyle='-')  # plot horizontal line at threshold
 
         # show the plot
@@ -130,9 +130,6 @@ class MiscPlotter:
         plt.legend()
         plt.suptitle(f"Losses ({os.getenv('CLIENT_NAME')})", fontsize=20)
         plt.show()
-
-    def plot_roc(self):
-        roc_plotter = RocPlotter()
 
 
 class RocPlotter:

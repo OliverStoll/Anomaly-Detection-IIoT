@@ -16,6 +16,7 @@ from util.calculations import *
 from util.callbacks import scheduler  # , tensor_callback
 from util.config import c, client_config
 
+
 # os.environ['CUDA_VISIBLE_DEVICES'] = '-1'  # disable GPU usage (IIoT)
 
 
@@ -31,6 +32,7 @@ class Training:
         self.batch_size = c.BATCH_SIZE
         self.val_split = c.VAL_SPLIT
         self.train_split = c.TRAIN_SPLIT
+        self.verbose = 1
         # data
         self.labels = anomalies[self.dataset_name][self.experiment_name]['bearing-0']  # todo: generalize
         self.data_3d, self.data_train_3d = self._load_and_normalize_data()
@@ -47,8 +49,7 @@ class Training:
         self.mse_fft = []
         self.data_pred_2d = []
         self.fft_pred_2d = []
-        self.callbacks = [tf.keras.callbacks.LearningRateScheduler(scheduler),
-                          TensorBoard(log_dir=f"logs/train/lstm")]  # initialize the learning rate scheduler
+        self.callbacks = [tf.keras.callbacks.LearningRateScheduler(scheduler)]  # initialize the learning rate scheduler
 
     def _load_and_normalize_data(self):
         """
@@ -79,7 +80,7 @@ class Training:
         train_data = df[:split_len].iloc[:, :].values
 
         # normalize the data
-        scaler = MinMaxScaler()
+        scaler = StandardScaler()  # MinMaxScaler()
         data = scaler.fit_transform(data)
         train_data = scaler.transform(train_data)
 
@@ -168,27 +169,47 @@ class Training:
                                             epochs=epochs,
                                             batch_size=self.batch_size,
                                             callbacks=self.callbacks,
-                                            validation_split=self.val_split).history
+                                            validation_split=self.val_split,
+                                            verbose=self.verbose).history
         _history_fft = self.model_fft.fit(self.fft_train_3d,
                                           self.fft_train_3d,
                                           epochs=epochs,
                                           batch_size=self.batch_size,
-                                          validation_split=self.val_split).history
+                                          callbacks=self.callbacks,
+                                          validation_split=self.val_split,
+                                          verbose=self.verbose).history
 
         self.history_lstm['loss'] += _history_lstm['loss']
         self.history_lstm['val_loss'] += _history_lstm['val_loss']
         self.history_fft['loss'] += _history_fft['loss']
         self.history_fft['val_loss'] += _history_fft['val_loss']
 
-    def evaluate(self, show_all=False, show_infos=False, show_as=False, show_preds=False, show_roc=False, show_losses=False):
+    def calculate_anom_score(self, mean_over_period=True):
+        # calculate the anomaly scores
+        self.data_pred_2d = self.model_lstm.predict(self.data_3d).reshape((-1, self.data_3d.shape[2]))
+        self.fft_pred_2d = self.model_fft.predict(self.fft_3d).reshape((-1, self.fft_3d.shape[2]))
+        self.mse_lstm = ((self.data_2d - self.data_pred_2d) ** 2).mean(axis=1)
+        self.mse_fft = ((self.fft_2d - self.fft_pred_2d) ** 2).mean(axis=1)
+
+
+        # calculate the mean of each group
+        if mean_over_period:
+            # group the mse scores in groups of split
+            mse_lstm_grouped = np.array([self.mse_lstm[i:i+c.SPLIT] for i in range(0, len(self.mse_lstm), c.SPLIT)])
+            mse_fft_grouped = np.array([self.mse_fft[i:i+c.SPLIT] for i in range(0, len(self.mse_fft), c.SPLIT)])
+            
+            self.mse_lstm = np.mean(mse_lstm_grouped, axis=1)
+            self.mse_fft = np.mean(mse_fft_grouped, axis=1)
+
+    def evaluate(self, show_all=False, show_infos=False, show_as=False, show_preds=False, show_roc=False,
+                 show_losses=False):
         """
         Evaluate the models seperately.
 
         This is done by functionality in evaluation.py
         """
 
-        # calculate the anomaly scores
-        self._calculate_anomaly_scores()
+        self.calculate_anom_score()
 
         # plot general information
         general_plotter = MiscPlotter(trainer=self)
@@ -206,14 +227,10 @@ class Training:
         print("\nCalculating AUC...")
         roc_plotter = RocPlotter()
         for i in range(2):
-            threshold_factors = np.arange(10, 0, -0.01)
-            fps, tps, auc, f1_max = self._calculate_auc(mse=mses[i],
-                                                        threshold=thresholds[i],
-                                                        threshold_factors=threshold_factors)
-            threshold = round(threshold_factors[f1_max[1]], 6)
-            thresholds[i] = threshold * thresholds[i]
+            fps, tps, auc, f1_max = calculate_auc(trainer=self, mse=mses[i])
+            optimal_threshold = f1_max[2]
+            print("OPTIMAL THRESHOLD:", optimal_threshold)
             roc_plotter.plot_single_roc(fps=fps, tps=tps, auc=auc, f1_max=f1_max)
-        print(f"Thresholds: {thresholds}")
         if show_roc or show_all:
             roc_plotter.show()
 
@@ -226,6 +243,11 @@ class Training:
                                                          max_index=self.data_3d.shape[0])
             both_anomaly_times.append(anomaly_times)
 
+        # multiply all values in both lists by the split size, to account for the different indexes
+        both_anomaly_times = [np.array(x) * self.split_size for x in both_anomaly_times]
+        # convert back from array to list
+        both_anomaly_times = [x.tolist() for x in both_anomaly_times]
+
         if show_preds or show_all:
             PredictionsPlotter(file_path=f"{self.data_path}_{self.split_size}.csv",
                                sub_experiment_index=self.sub_experiment_index,
@@ -236,50 +258,11 @@ class Training:
                                anomalies_pred_fft=both_anomaly_times[1]
                                ).plot_experiment()
 
-    def _calculate_anomaly_scores(self):
-        self.data_pred_2d = self.model_lstm.predict(self.data_3d).reshape((-1, self.data_3d.shape[2]))
-        self.fft_pred_2d = self.model_fft.predict(self.fft_3d).reshape((-1, self.fft_3d.shape[2]))
-        self.mse_lstm = ((self.data_2d - self.data_pred_2d) ** 2).mean(axis=1)
-        self.mse_fft = ((self.fft_2d - self.fft_pred_2d) ** 2)
-
-    def _calculate_auc(self, mse, threshold, threshold_factors):
-
-        all_anomaly_indexes = []
-        fps = []
-        tps = []
-        f1_max = (0, 0)
-        for threshold_factor in threshold_factors:
-            anomaly_indexes = np.where(mse > threshold * threshold_factor)[0]
-            anomaly_sample_indexes = np.unique(anomaly_indexes // self.split_size)
-            all_anomaly_indexes.append(anomaly_sample_indexes)
-
-        for i, indexes in enumerate(all_anomaly_indexes):
-            tp, fp, fn, tn = get_tp_fp_fn_tn_from_indexes(pred_indexes=indexes,
-                                                          max_index=self.data_3d.shape[0],
-                                                          labels=self.labels)
-            precision, recall, f1 = calculate_precision_recall_f1(tp=tp, fp=fp, fn=fn, tn=tn)
-            if f1 > f1_max[0]:
-                f1_max = (f1, i)
-            fps.append(fp)
-            tps.append(tp)
-        p = tp + fn
-        n = fp + tn
-
-        # divide all the tps and fps by p and n
-        tps = np.array(tps) / p
-        fps = np.array(fps) / n
-
-        # plot the ROC curve from the coordinates
-        auc = np.trapz(y=tps, x=fps)
-
-        return fps, tps, auc, f1_max
-
 
 if __name__ == '__main__':
-
     trainer = Training(data_path=c.CLIENT_1['DATASET_PATH'], data_columns=c.CLIENT_1['DATASET_COLUMNS'])
     # trainer.tune_models()
     trainer.train_models(epochs=10)
-    trainer.save_models(dir_path=c.CLIENT_1['MODEL_PATH'])
+    # trainer.save_models(dir_path=c.CLIENT_1['MODEL_PATH'])
     # trainer.load_models(dir_path="model/bearing/sabtain_2")
     trainer.evaluate(show_preds=True, show_roc=True, show_infos=True, show_as=True)

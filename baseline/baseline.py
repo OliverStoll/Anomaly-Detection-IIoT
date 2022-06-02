@@ -38,7 +38,7 @@ from sklearn.metrics import precision_recall_fscore_support, f1_score
 # In[3]:
 
 import yaml
-config = yaml.safe_load(open('../files/config_baseline.yaml'))
+config = yaml.safe_load(open('../configs/config_baseline.yaml'))
 
 # data
 DATASET_PATH = config['DATASET_PATH']
