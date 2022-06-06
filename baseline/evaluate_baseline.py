@@ -10,6 +10,9 @@ import numpy as np
 from sklearn import preprocessing
 import seaborn as sns
 
+# set tf error logging to none
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+
 sns.set(color_codes=True)
 import matplotlib.pyplot as plt
 # get_ipython().run_line_magic('matplotlib', 'inline')
@@ -42,10 +45,10 @@ config = yaml.safe_load(open('../configs/config_baseline.yaml'))
 
 # data
 DATASET_PATH = config['DATASET_PATH']
-MODEL_PATH = config['MODEL_PATH']
 DATASET_COLUMN = config['DATASET_COLUMN']
 TRAIN_SPLIT = config['TRAIN_SPLIT']
 VAL_SPLIT = config['VAL_SPLIT']
+DOWNSAMPLE = config['DOWNSAMPLE']
 # training
 EPOCHS = config['EPOCHS']
 BATCH_SIZE = config['BATCH_SIZE']
@@ -72,7 +75,7 @@ def readData(dataDir, setName, set1=False):
 
         dataset = pd.read_csv(os.path.join(dataDir, filename), sep='\t', header=None, names=cols)
 
-        avg_df = dataset.groupby(dataset.index // 5).mean()
+        avg_df = dataset.groupby(dataset.index // DOWNSAMPLE).mean()
 
         for bearing in cols:
             dict_key = setName + "_" + bearing
@@ -97,6 +100,7 @@ bearing1 = pd.concat(data[f"S2_bearing-{DATASET_COLUMN + 1}"])
 split_len = int(len(bearing1) * TRAIN_SPLIT)
 train = bearing1.iloc[0:split_len]
 test = bearing1.iloc[split_len:]
+total = bearing1.iloc[:]
 train.reset_index(drop=True, inplace=True)
 test.reset_index(drop=True, inplace=True)
 
@@ -107,6 +111,7 @@ test.reset_index(drop=True, inplace=True)
 scaler = preprocessing.StandardScaler()
 train_scaled = pd.DataFrame(scaler.fit_transform(train))
 test_scaled = pd.DataFrame(scaler.transform(test))
+total_scaled = pd.DataFrame(scaler.transform(total))
 
 
 # # prepare data for LSTM
@@ -117,6 +122,17 @@ test_scaled = pd.DataFrame(scaler.transform(test))
 def temporalize(X, lookback):
     output_X = []
     for i in range(len(X) - lookback - 1):
+        t = []
+        for j in range(1, lookback + 1):
+            # Gather past records upto the lookback period
+            t.append(X[[(i + j + 1)], :])
+        output_X.append(t)
+    return output_X
+
+
+def temporalize2(X, lookback):
+    output_X = []
+    for i in range(len(X)):
         t = []
         for j in range(1, lookback + 1):
             # Gather past records upto the lookback period
@@ -167,42 +183,38 @@ lookback = 20
 # Temporalize the data
 X = temporalize(X=train_scaled.values, lookback=lookback)
 X_t = temporalize(X=test_scaled.values, lookback=lookback)
+x_total = temporalize(X=total_scaled.values, lookback=lookback)
 
 # In[10]:
 
 
 X_train_lstm = np.array(X)
 X_test_lstm = np.array(X_t)
+x_total_lstm = np.array(x_total)
 X_train = X_train_lstm.reshape(X_train_lstm.shape[0], lookback, n_features)
 X_test = X_test_lstm.reshape(X_test_lstm.shape[0], lookback, n_features)
+x_total = x_total_lstm.reshape(x_total_lstm.shape[0], lookback, n_features)
 
 
 def plot_and_evaluate(lstm_autoencoder):
 
-    X_pred_train = lstm_autoencoder.predict(np.array(X_train))
-    X_pred_test = lstm_autoencoder.predict(np.array(X_test))
-    # concat both predictions
-    x_pred = np.concatenate((X_pred_train, X_pred_test), axis=0)
-    print(x_pred.shape)
+    X_pred_train = lstm_autoencoder.predict(np.array(X_train), verbose=0)
+    X_pred_test = lstm_autoencoder.predict(np.array(X_test), verbose=0)
+    x_pred_total = lstm_autoencoder.predict(np.array(x_total), verbose=0)
+
     X_pred_train = pd.DataFrame(flatten(X_pred_train))
     X_pred_test = pd.DataFrame(flatten(X_pred_test))
-    x_pred = pd.DataFrame(flatten(x_pred))
+    x_pred_total = pd.DataFrame(flatten(x_pred_total))
 
-    # concatenate X_train and X_test
-    # X_full = np.concatenate(flatten(X_train), flatten(X_test))
-
-    scored_test = pd.DataFrame()
     mse_train = np.mean(np.abs(X_pred_train - flatten(X_train)), axis=1)
     mse_test = np.mean(np.abs(X_pred_test - flatten(X_test)), axis=1)
+    mse_total = np.mean(np.abs(x_pred_total - flatten(x_total)), axis=1)
+
     # concate mse_train and mse_test
     mse = np.concatenate((mse_train, mse_test), axis=0)
-    scored_test['RE'] = mse  # corrected error
-    scored_test['Threshold'] = 1.0
-    scored_test['Anomaly'] = scored_test['RE'] > scored_test['Threshold']  # corrected error
 
-    # In[21]:
+    # convert mse_total to ndarray
+    mse_total = mse_total.values
 
-    scored_test.plot(figsize=(16, 8), color=['blue', 'red'], title="Failure of Bearing 1 (Set-2)")
-    plt.show()
 
-    return mse
+    return mse_total  # mse

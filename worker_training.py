@@ -1,11 +1,15 @@
+from datetime import datetime
+start = datetime.now()
 import socket
 import pickle
 import os
 import random
+from threading import Thread
 from keras.models import load_model
 
 from training import Training
-from util.socket_functionality import send_msg, recv_msg
+from util.logs import log_ressource_usage
+from util.tcp_messages import send_msg, recv_msg
 from util.config import c, client_config
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
@@ -59,11 +63,22 @@ class TrainingWorker:
 
 
 if __name__ == '__main__':
+
     # print all environment variables
     print(f"TRAINING_WORKER: Starting as {os.environ.get('CLIENT_NAME')} ")
     trainer = TrainingWorker(connect_ip_port=c.CONNECT_IP_PORT,
                              data_path=client_config['DATASET_PATH'],
                              data_cols=client_config['DATASET_COLUMNS'],
-                             model_path=f"model/federated/{client_config['MODEL_PATH']}")
+                             model_path=f"model/{c.EXPERIMENT_NAME}/federated/{os.environ.get('CLIENT_NAME')}")
+
+    # start ressources logging
+    t = Thread(target=log_ressource_usage, args=(f"{c.LOGS_PATH}/ressources_{os.getenv('CLIENT_NAME').lower()}",))
+    t.start()
+    time_until_training = (datetime.now() - start).total_seconds()
+    print(f"TIME_UNTIL_TRAINING:{time_until_training:.2f}")
+
     trainer.run(rounds=c.EPOCHS, epochs_per_round=1)
+
+    t.join()
+
 

@@ -1,0 +1,23 @@
+{
+    "centralized": {
+        "cpu": 175.419,
+        "memory": 39754.59,
+        "memory_mean": 651.71,
+        "memory_max": 723.32,
+        "runtime": 60.96
+    },
+    "federated": {
+        "cpu": 163.705,
+        "memory": 253630.3,
+        "memory_mean": 577.75,
+        "memory_max": 789.57,
+        "runtime": 163.65
+    },
+    "baseline": {
+        "cpu": 2370.466,
+        "memory": 4152881.33,
+        "memory_mean": 13396.39,
+        "memory_max": 16481.78,
+        "runtime": 315.04
+    }
+}

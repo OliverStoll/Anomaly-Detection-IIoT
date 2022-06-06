@@ -1,3 +1,4 @@
+from datetime import datetime
 import tensorflow as tf
 import pandas as pd
 import numpy as np
@@ -12,12 +13,13 @@ from io import StringIO
 
 from plotting import *  # evaluate_model_lstm, evaluate_model_fft, find_timestretches_from_indexes
 from models import lstm_autoencoder_model, fft_autoencoder_model
-from util.calculations import *
-from util.callbacks import scheduler  # , tensor_callback
+from util.ml_calculations import *
+from util.ml_callbacks import scheduler  # , tensor_callback
 from util.config import c, client_config
 
 
 # os.environ['CUDA_VISIBLE_DEVICES'] = '-1'  # disable GPU usage (IIoT)
+anomalies = yaml.safe_load(open(f"configs/anomalies.yaml"))
 
 
 class Training:
@@ -32,24 +34,29 @@ class Training:
         self.batch_size = c.BATCH_SIZE
         self.val_split = c.VAL_SPLIT
         self.train_split = c.TRAIN_SPLIT
+        self.threshold_deviations = c.THRESHOLD_DEVIATIONS
+        self.thresholds = {'lstm': None, 'fft': None}
         self.verbose = 1
+        self.is_until_failure = 'bearing' in data_path
+        self.use_optimal_threshold = c.USE_OPTIMAL_THRESHOLD
+        self.threshold_calc_period = c.THRESHOLD_CALCULATION_PERIOD
         # data
-        self.labels = anomalies[self.dataset_name][self.experiment_name]['bearing-0']  # todo: generalize
+        self.labels = anomalies[self.dataset_name][self.experiment_name][
+            f'bearing-{int(data_columns[0] / len(data_columns))}']
         self.data_3d, self.data_train_3d = self._load_and_normalize_data()
         self.data_2d = self.data_3d.reshape((-1, self.data_3d.shape[2]))
-        self.fft_3d = calculate_fft_from_data(self.data_3d)
-        self.fft_train_3d = calculate_fft_from_data(self.data_train_3d)
+        self.fft_3d = fft_from_data(self.data_3d)
+        self.fft_train_3d = fft_from_data(self.data_train_3d)
         self.fft_2d = self.fft_3d.reshape((-1, self.fft_3d.shape[2]))
-        # models and losses
+        # models
         self.model_lstm = lstm_autoencoder_model()
         self.model_fft = fft_autoencoder_model()
+        self.callbacks = [tf.keras.callbacks.LearningRateScheduler(scheduler)]  # initialize the learning rate scheduler
+        # results
         self.history_lstm = {'loss': [], 'val_loss': []}
         self.history_fft = {'loss': [], 'val_loss': []}
-        self.mse_lstm = []
-        self.mse_fft = []
-        self.data_pred_2d = []
-        self.fft_pred_2d = []
-        self.callbacks = [tf.keras.callbacks.LearningRateScheduler(scheduler)]  # initialize the learning rate scheduler
+        self.mses = {'lstm': [], 'fft': []}
+        self.f1s = {'lstm': None, 'fft': None}
 
     def _load_and_normalize_data(self):
         """
@@ -99,8 +106,8 @@ class Training:
         """
 
         # load the models
-        self.model_lstm = tf.keras.models.load_model(f"{dir_path}/lstm_model.h5")
-        self.model_fft = tf.keras.models.load_model(f"{dir_path}/fft_model.h5")
+        self.model_lstm = tf.keras.models.load_model(f"{dir_path}/lstm.h5")
+        self.model_fft = tf.keras.models.load_model(f"{dir_path}/fft.h5")
 
     def save_models(self, dir_path):
         """
@@ -110,8 +117,8 @@ class Training:
         """
 
         # save the models
-        self.model_lstm.save(f"{dir_path}/lstm_model.h5")
-        self.model_fft.save(f"{dir_path}/fft_model.h5")
+        self.model_lstm.save(f"{dir_path}/lstm.h5")
+        self.model_fft.save(f"{dir_path}/fft.h5")
 
     def tune_models(self, replace_models=False):
         print("TUNING MODELS - REDIRECTING STDOUT")
@@ -185,21 +192,33 @@ class Training:
         self.history_fft['val_loss'] += _history_fft['val_loss']
 
     def calculate_anom_score(self, mean_over_period=True):
-        # calculate the anomaly scores
-        self.data_pred_2d = self.model_lstm.predict(self.data_3d).reshape((-1, self.data_3d.shape[2]))
-        self.fft_pred_2d = self.model_fft.predict(self.fft_3d).reshape((-1, self.fft_3d.shape[2]))
-        self.mse_lstm = ((self.data_2d - self.data_pred_2d) ** 2).mean(axis=1)
-        self.mse_fft = ((self.fft_2d - self.fft_pred_2d) ** 2).mean(axis=1)
 
+        # calculate the anomaly scores
+        data_pred_2d = self.model_lstm.predict(self.data_3d, verbose=0).reshape((-1, self.data_3d.shape[2]))
+        fft_pred_2d = self.model_fft.predict(self.fft_3d, verbose=0).reshape((-1, self.fft_3d.shape[2]))
+        self.mses = {'lstm': ((self.data_2d - data_pred_2d) ** 2).mean(axis=1),
+                     'fft': ((self.fft_2d - fft_pred_2d) ** 2).mean(axis=1)}
 
         # calculate the mean of each group
         if mean_over_period:
             # group the mse scores in groups of split
-            mse_lstm_grouped = np.array([self.mse_lstm[i:i+c.SPLIT] for i in range(0, len(self.mse_lstm), c.SPLIT)])
-            mse_fft_grouped = np.array([self.mse_fft[i:i+c.SPLIT] for i in range(0, len(self.mse_fft), c.SPLIT)])
-            
-            self.mse_lstm = np.mean(mse_lstm_grouped, axis=1)
-            self.mse_fft = np.mean(mse_fft_grouped, axis=1)
+            mse_lstm_grouped = np.array([self.mses['lstm'][i:i + self.split_size] for i in
+                                         range(0, len(self.mses['lstm']), self.split_size)])
+            mse_fft_grouped = np.array([self.mses['fft'][i:i + self.split_size] for i in
+                                        range(0, len(self.mses['fft']), self.split_size)])
+
+            self.mses = {'lstm': np.mean(mse_lstm_grouped, axis=1),
+                         'fft': np.mean(mse_fft_grouped, axis=1)}
+
+    def calculate_threshold_from_standarddeviation(self):
+        for model_type in ['lstm', 'fft']:
+            start_index = int(self.threshold_calc_period[0] * self.split_size)
+            end_index = int(self.threshold_calc_period[1] * self.split_size)
+            mse_period = self.mses[model_type][start_index:end_index]
+            # get the mean and standard deviation of the mse scores
+            mean = np.array(mse_period).mean()
+            std = np.array(mse_period).std()
+            self.thresholds[model_type] = mean + std * self.threshold_deviations
 
     def evaluate(self, show_all=False, show_infos=False, show_as=False, show_preds=False, show_roc=False,
                  show_losses=False):
@@ -210,52 +229,56 @@ class Training:
         """
 
         self.calculate_anom_score()
+        self.calculate_threshold_from_standarddeviation()
 
         # plot general information
         general_plotter = MiscPlotter(trainer=self)
         if show_losses or show_all:
-            general_plotter.plot_losses(ylim=c.PLOT_YLIM_LOSSES)
+            general_plotter.plot_losses()
         if show_infos or show_all:
             general_plotter.plot_infotable()
-        if show_as or show_all:
-            general_plotter.plot_anomaly_scores()
 
-        # plot the ROC curve and calculate optimal thresholds by checking many possible
-        mses = [self.mse_lstm, self.mse_fft]
-        thresholds = [c.THRESHOLD_LSTM, c.THRESHOLD_FFT]
-
-        print("\nCalculating AUC...")
+        # calculate the AUC for both models, and find the theoretically optimal threshold
         roc_plotter = RocPlotter()
-        for i in range(2):
-            fps, tps, auc, f1_max = calculate_auc(trainer=self, mse=mses[i])
-            optimal_threshold = f1_max[2]
-            print("OPTIMAL THRESHOLD:", optimal_threshold)
+        for type in ['lstm', 'fft']:
+            fps, tps, auc, f1_max = calculate_auc(trainer=self, mse=self.mses[type],
+                                                  is_until_failure=self.is_until_failure)
+            if self.use_optimal_threshold:
+                self.thresholds[type] = f1_max[2]  # use the optimal threshold as the threshold
             roc_plotter.plot_single_roc(fps=fps, tps=tps, auc=auc, f1_max=f1_max)
+
+        # calculate the F1 score for both models
+        for type in ['lstm', 'fft']:
+            self.f1s[type] = calculate_f1(threshold=self.thresholds[type], mse=self.mses[type], labels=self.labels,
+                                         is_until_failure=self.is_until_failure)
+            self.f1s[type] = round(self.f1s[type], 4)
+            print(f"{type: <4} F1: {self.f1s[type]:.3f}")
+
+        # plot the ROC curves
         if show_roc or show_all:
             roc_plotter.show()
 
+        # plot the anomaly scores
+        if show_as or show_all:
+            general_plotter.plot_anomaly_scores(thresholds=self.thresholds)
+
         # get all time-periods where the anomaly score is above the threshold
-        both_anomaly_times = []
-        for i in range(2):
-            anomaly_indexes = np.where(mses[i] > thresholds[i])[0]
-            anomaly_sample_indexes = np.unique(anomaly_indexes // self.split_size)
-            anomaly_times = find_timetuples_from_indexes(indexes=anomaly_sample_indexes,
-                                                         max_index=self.data_3d.shape[0])
-            both_anomaly_times.append(anomaly_times)
+        anomaly_times = {}
+        for type in ['lstm', 'fft']:
+            anomaly_sample_indexes = get_anomaly_indexes(threshold=self.thresholds[type], mse=self.mses[type],
+                                                         is_until_failure=self.is_until_failure)
+            anomaly_times[type] = get_timetuples_from_indexes(indexes=anomaly_sample_indexes,
+                                                              max_index=self.data_3d.shape[0])
 
-        # multiply all values in both lists by the split size, to account for the different indexes
-        both_anomaly_times = [np.array(x) * self.split_size for x in both_anomaly_times]
-        # convert back from array to list
-        both_anomaly_times = [x.tolist() for x in both_anomaly_times]
-
+        # plot the anomaly times
         if show_preds or show_all:
             PredictionsPlotter(file_path=f"{self.data_path}_{self.split_size}.csv",
                                sub_experiment_index=self.sub_experiment_index,
                                ylim=c.PLOT_YLIM_VIBRATION,
                                features=len(self.data_columns),
                                anomalies_real=anomalies[self.dataset_name][self.experiment_name],
-                               anomalies_pred_lstm=both_anomaly_times[0],
-                               anomalies_pred_fft=both_anomaly_times[1]
+                               anomalies_pred_lstm=anomaly_times['lstm'],
+                               anomalies_pred_fft=anomaly_times['fft'],
                                ).plot_experiment()
 
 

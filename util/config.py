@@ -15,6 +15,7 @@ if client_name is None or 'CLIENT' not in client_name:
 
 # import the config file
 c = yaml.safe_load(open(f"configs/{config_file}"))
+baseline_config = yaml.safe_load(open(f"configs/config_baseline.yaml"))
 config = c
 client_config = c[client_name]
 c = SimpleNamespace(**c)

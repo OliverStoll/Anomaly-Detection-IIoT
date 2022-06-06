@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import os
 import yaml
+import json
 from datetime import datetime
 import matplotlib as mpl
 from matplotlib import pyplot as plt
@@ -35,7 +36,7 @@ class MiscPlotter:
         trainer = self.trainer
         data = trainer.data_2d[:, 0]
         pred = trainer.data_pred_2d[:, 0]
-        mse = trainer.mse_lstm
+        mse = trainer.mses['lstm']
         loss = trainer.history_lstm['loss']
         val_loss = trainer.history_lstm['val_loss']
         num_features = len(trainer.data_columns)
@@ -71,7 +72,8 @@ class MiscPlotter:
         plt.subplot(2, 2, 3)
         plt.title("Vibration - Chunk", fontdict=font_d)
         for i in range(1):
-            plt.plot(results_chunk[f'Data_{i}'].tolist(), label=f"Data_{i}", color=(1 - i * 0.3, i * 0.3, 0), linestyle='-')
+            plt.plot(results_chunk[f'Data_{i}'].tolist(), label=f"Data_{i}", color=(1 - i * 0.3, i * 0.3, 0),
+                     linestyle='-')
             plt.plot(results_chunk[f'Pred_{i}'].tolist(), label=f"Prediction_{i}", color=(1 - i * 0.3, i * 0.3, 0),
                      linestyle='--')
         plt.legend()
@@ -89,32 +91,28 @@ class MiscPlotter:
         plt.suptitle(f"Infotable {trainer.experiment_name} ({os.getenv('CLIENT_NAME')})", fontsize=20)
         plt.show()
 
-    def plot_anomaly_scores(self):
+    def plot_anomaly_scores(self, thresholds, mses=None):
 
-        # get the mses
-        mse_lstm = self.trainer.mse_lstm
-        mse_fft = self.trainer.mse_fft
+        ylim_factor = c.PLOT_YLIM_SCORES_FACTOR
+        # get the mses from the trainer object if not provided
+        if mses is None:
+            mses = self.trainer.mses
 
-        # add two subplots
+        # add subplots for each model type
         fig, ax = plt.subplots(2, 1, figsize=(15, 10))
 
-        # plot the mse of the lstm model
-        ax[0].plot(mse_lstm)
-        ax[0].set_title("LSTM Autoencoder Anomaly Score")
-        ax[0].set_ylim(0, 6 * c.THRESHOLD_LSTM)
-        ax[0].axhline(y=c.THRESHOLD_LSTM, color='r', linestyle='-')  # plot horizontal line at threshold
-
-        # plot the mse of the fft model
-        ax[1].plot(mse_fft)
-        ax[1].set_title("FFT Autoencoder Anomaly Score")
-        ax[1].set_ylim(0, 6 * c.THRESHOLD_FFT)
-        ax[1].axhline(y=c.THRESHOLD_FFT, color='r', linestyle='-')  # plot horizontal line at threshold
+        # plot the mse for each model type
+        for i, model_type in enumerate(mses.keys()):
+            ax[i].plot(mses[model_type])
+            ax[i].set_title(f"{model_type} Autoencoder Anomaly Score")
+            ax[i].set_ylim(0, ylim_factor * thresholds[model_type])
+            ax[i].axhline(y=thresholds[model_type], color='r', linestyle='-')  # plot horizontal line at threshold
 
         # show the plot
         plt.suptitle(f"Anomaly Scores ({os.getenv('CLIENT_NAME')})", fontsize=20)
         fig.show()
 
-    def plot_losses(self, ylim):
+    def plot_losses(self, ylim=c.PLOT_YLIM_LOSSES):
         plt.figure(figsize=(15, 10))
         plt.subplot(2, 1, 1)
         plt.ylim([0, ylim])
@@ -143,7 +141,6 @@ class RocPlotter:
         self.fig.show()
 
     def plot_single_roc(self, fps, tps, auc, f1_max):
-
         ax = self.fig.add_subplot(1, self.subplot_x, self.subplot_index)
         self.subplot_index += 1
         ax.plot(fps[f1_max[1]], tps[f1_max[1]], 'ro', label='Max F1 Score')
@@ -199,9 +196,6 @@ class PredictionsPlotter:
         For every sub experiment, a subplot is created.
         """
 
-        # load the data
-        print(f"Plotting {self.file_path.split('/')[-1]}")
-
         # iterate over the bearing index to plot all bearings in one figure
         for sub_experiment in range(self.sub_plots):
 
@@ -212,8 +206,9 @@ class PredictionsPlotter:
                 self._add_single_subplot(inner=inner, sub_experiment=sub_experiment, index=index)
 
         # plot title and show the figure
-        self.fig.suptitle(f"Predictions: {self.file_path.split('/')[-1].replace('.csv', '')} ({os.getenv('CLIENT_NAME')})",
-                          fontsize=20)
+        self.fig.suptitle(
+            f"Predictions: {self.file_path.split('/')[-1].replace('.csv', '')} ({os.getenv('CLIENT_NAME')})",
+            fontsize=20)
         self._add_legend_to_figure()
         self.fig.show()
 
@@ -256,20 +251,23 @@ class PredictionsPlotter:
 
         # plot the label anomalies if available
         if self.anomalies_real and len(self.anomalies_real) > 0:
-            anomalies_real = list(self.anomalies_real.items())[sub_experiment+self.sub_experiments_index][1]  # anomalies real are whole yaml dict
+            anomalies_real = list(self.anomalies_real.items())[sub_experiment + self.sub_experiments_index][
+                1]  # anomalies real are whole yaml dict
             minmax = (0.05, 0.25) if self.anomalies_pred_lstm else (0.05, 0.95)
             self._add_anomalies_to_subplot(ax=ax, color='red', anomaly_list=anomalies_real, minmax=minmax)
 
         # plot the predicted anomalies if available
         if self.anomalies_pred_lstm:
-            self._add_anomalies_to_subplot(ax=ax, color='purple', anomaly_list=self.anomalies_pred_lstm, minmax=(0.675, 0.95))
+            self._add_anomalies_to_subplot(ax=ax, color='purple', anomaly_list=self.anomalies_pred_lstm,
+                                           minmax=(0.675, 0.95))
         if self.anomalies_pred_fft:
-            self._add_anomalies_to_subplot(ax=ax, color='green', anomaly_list=self.anomalies_pred_fft, minmax=(0.35, 0.625))
+            self._add_anomalies_to_subplot(ax=ax, color='green', anomaly_list=self.anomalies_pred_fft,
+                                           minmax=(0.35, 0.625))
 
         # plot the training split as vertical line, if training data was split
         if c.PLOT_SPLITS:
             ax.axvline(x=c.TRAIN_SPLIT * self.x_max, color='black', alpha=0.5, linestyle='-')
-            ax.axvline(x=c.TRAIN_SPLIT * (1-c.VAL_SPLIT) * self.x_max, color='black', alpha=0.5, linestyle='--')
+            ax.axvline(x=c.TRAIN_SPLIT * (1 - c.VAL_SPLIT) * self.x_max, color='black', alpha=0.5, linestyle='--')
 
         self.fig.add_subplot(ax)
 
@@ -288,7 +286,7 @@ class PredictionsPlotter:
                         Line2D([0], [0], color='green', lw=4),
                         Line2D([0], [0], color='red', lw=4)]
         split_lines = [Line2D([0], [0], color='black', linestyle='-', lw=4),
-                        Line2D([0], [0], color='black', linestyle='--', lw=4)]
+                       Line2D([0], [0], color='black', linestyle='--', lw=4)]
         titles = ['Anomalies LSTM', 'Anomalies FFT', 'Labeled']
         split_titles = ['Training Split', 'Validation Split']
         if c.PLOT_SPLITS:
@@ -301,13 +299,66 @@ class PredictionsPlotter:
             lh.set_alpha(0.5)
 
 
+class RessourcesPlotter:
+    def __init__(self, experiment_json_path):
+        self.experiment_results = json.load(open(experiment_json_path))
+        self.experiment_names = ["centralized", "federated", "baseline"]
+
+    def plot(self):
+
+        group_labels = ['Centralized', 'Federated', 'Baseline']
+        x = np.arange(len(group_labels))  # the label locations
+        width = 0.15  # the width of the bars
+        alpha = 0.6
+
+        plot_dict = {}
+        cpu_values = [self.experiment_results[key]['cpu'] for key in self.experiment_names]
+        memory_mean_values = [self.experiment_results[key]['memory_mean'] for key in self.experiment_names]
+        memory_max_values = [self.experiment_results[key]['memory_max'] for key in self.experiment_names]
+        runtime_values = [self.experiment_results[key]['runtime'] for key in self.experiment_names]
+
+        # scale all values by maximum
+        cpu_scaled = [value / max(cpu_values) for value in cpu_values]
+        memory_mean_scaled = [value / max(memory_mean_values) for value in memory_mean_values]
+        memory_max_scaled = [value / max(memory_max_values) for value in memory_max_values]
+        runtime_scaled = [value / max(runtime_values) for value in runtime_values]
+
+        # round everything
+        round_digits = 0
+        cpu_values = [round(x, round_digits) for x in cpu_values]
+        memory_mean_values = [round(x, round_digits) for x in memory_mean_values]
+        memory_max_values = [round(x, round_digits) for x in memory_max_values]
+        runtime_values = [round(x, round_digits) for x in runtime_values]
+
+        # create grouped barplot
+        fig, ax = plt.subplots()
+        cpu_rects = ax.bar(x + width * (1.5), cpu_values, width, label='CPU [core-s]', alpha=alpha)
+        memory_mean_rects = ax.bar(x + width * (0.5), memory_mean_values, width, label='Memory Mean [MB]', alpha=alpha)
+        memory_max_rects = ax.bar(x + width * (-0.5), memory_max_values, width, label='Memory Max [MB]', alpha=alpha)
+        runtime_rects = ax.bar(x + width * (-1.5), runtime_values, width, label='Runtime [s]', alpha=alpha)
+
+        ax.set_xticks(x, group_labels)
+        ax.set_ylabel('Values')
+        ax.legend()
+        ax.set_title('Ressource Usages')
+
+        fontsize = 7
+        ax.bar_label(cpu_rects, padding=5, fontsize=fontsize)
+        ax.bar_label(memory_mean_rects, padding=5, fontsize=fontsize)
+        ax.bar_label(memory_max_rects, padding=5, fontsize=fontsize)
+        ax.bar_label(runtime_rects, padding=5, fontsize=fontsize)
+
+        fig.show()
+
+
 def _plot_all_kbm(ending):
     # iterate over all files in data/kbm
     for file in os.listdir('data/kbm'):
         # plot if file is a csv file
         if file.endswith(ending):
             PredictionsPlotter(file_path=f'data/kbm/{file}', sub_plots=1, features=4,
-                               anomalies_real=anomalies['kbm'][file.split("/")[-1].replace(ending, "")], ylim=[500, 500, 1500, 50]
+                               anomalies_real=anomalies['kbm'][file.split("/")[-1].replace(ending, "")],
+                               ylim=[500, 500, 1500, 50]
                                ).plot_experiment()
 
 
@@ -324,8 +375,4 @@ def _plot_all_bearing(ending):
 
 
 if __name__ == '__main__':
-    plotter = PredictionsPlotter(file_path=f"data/bearing/experiment-2_10.csv", sub_plots=1, sub_experiment_index=1,
-                                 features=1, ylim=.3, anomalies_real=anomalies['bearing']['experiment-2'])
-    plotter.plot_experiment()
-    #_plot_bearing(ending='_10.csv')
-    #_plot_kbm(ending='_10.csv')
+    RessourcesPlotter(experiment_json_path='logs/bearing_experiment-2/results.json').plot()

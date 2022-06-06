@@ -12,6 +12,7 @@ import seaborn as sns
 
 sns.set(color_codes=True)
 import matplotlib.pyplot as plt
+from datetime import datetime
 # get_ipython().run_line_magic('matplotlib', 'inline')
 from numpy.random import seed
 # from tensorflow import set_random_seed
@@ -37,15 +38,18 @@ from sklearn.metrics import precision_recall_fscore_support, f1_score
 
 # In[3]:
 
+start = datetime.now()
+
 import yaml
 config = yaml.safe_load(open('../configs/config_baseline.yaml'))
 
 # data
 DATASET_PATH = config['DATASET_PATH']
-MODEL_PATH = config['MODEL_PATH']
+EXPERIMENT_NAME = config['EXPERIMENT_NAME']
 DATASET_COLUMN = config['DATASET_COLUMN']
 TRAIN_SPLIT = config['TRAIN_SPLIT']
 VAL_SPLIT = config['VAL_SPLIT']
+DOWNSAMPLE = config['DOWNSAMPLE']
 # training
 EPOCHS = config['EPOCHS']
 BATCH_SIZE = config['BATCH_SIZE']
@@ -73,7 +77,7 @@ def readData(dataDir, setName, set1=False):
 
         dataset = pd.read_csv(os.path.join(dataDir, filename), sep='\t', header=None, names=cols)
 
-        avg_df = dataset.groupby(dataset.index // 5).mean()
+        avg_df = dataset.groupby(dataset.index // DOWNSAMPLE).mean()
 
         for bearing in cols:
             dict_key = setName + "_" + bearing
@@ -166,6 +170,8 @@ def scale(X, scaler):
 
 # In[9]:
 
+time_until_training = (datetime.now()-start).total_seconds()
+print(f"TIME_UNTIL_TRAINING:{time_until_training:.2f}")
 
 n_features = train_scaled.shape[1]
 lookback = 20
@@ -227,18 +233,8 @@ lstm_autoencoder_history = lstm_autoencoder.fit(X_train, X_train,
                                                 validation_split=VAL_SPLIT,
                                                 verbose=2).history
 
-# In[14]:
 
-
-plt.plot(lstm_autoencoder_history['loss'], linewidth=2, label='Train')
-plt.plot(lstm_autoencoder_history['val_loss'], linewidth=2, label='Valid')
-plt.legend(loc='upper right')
-plt.title('Model loss')
-plt.ylabel('Loss')
-plt.xlabel('Epoch')
-plt.show()
-
-# In[15]:
+print(f"TRAINING-DONE:{datetime.now()}")
 
 
 X_pred_train = lstm_autoencoder.predict(np.array(X_train))
@@ -249,13 +245,7 @@ X_pred_train = pd.DataFrame(flatten(X_pred_train))
 
 scored = pd.DataFrame(index=X_pred_train.index)
 scored['RE'] = np.mean(np.abs(X_pred_train - flatten(X_train)), axis=1)
-plt.figure()
-sns.distplot(scored['RE'],
-             bins=15,
-             kde=True,
-             color='blue')
-plt.title("Training Reconstruction Error")
-# plt.savefig("plots/RE_medium")
+
 
 
 # In[17]:
@@ -274,10 +264,6 @@ X_pred_test = pd.DataFrame(flatten(X_pred_test))
 
 scored_test = pd.DataFrame(index=X_pred_test.index)
 scored_test['RE'] = np.mean(np.abs(X_pred_test - flatten(X_test)), axis=1)  # corrected error
-plt.figure()
-sns.distplot(scored_test['RE'], bins=15, kde=True, color='blue')
-plt.title("Reconstruction loss Bearing 1 (Test set)")
-# plt.savefig("plots/RE_test")
 
 
 # In[20]:
@@ -286,15 +272,11 @@ plt.title("Reconstruction loss Bearing 1 (Test set)")
 scored_test['Threshold'] = 1.0
 scored_test['Anomaly'] = scored_test['RE'] > scored_test['Threshold']  # corrected error
 
-# In[21]:
-
-
-scored_test.plot(figsize=(16, 8), color=['blue', 'red'], title="Failure of Bearing 1 (Set-2)")
 
 # # MY EVALUATION
 
 # In[22]:
 
 
-lstm_autoencoder.save(f'../model/baseline/{MODEL_PATH}/lstm_baseline.h5')
+lstm_autoencoder.save(f'../model/{EXPERIMENT_NAME}/baseline/lstm.h5')
 scored_test['RE'].to_csv('baseline_anomaly_scores.csv', index=False)

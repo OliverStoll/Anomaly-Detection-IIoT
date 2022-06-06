@@ -1,13 +1,18 @@
+import os
 import socket
 from keras.models import load_model
 import numpy as np
 import pickle
+import json
 from datetime import datetime
+from threading import Thread
 
 from models import fft_autoencoder_model
 
-from util.socket_functionality import send_msg, recv_msg
+from util.tcp_messages import send_msg, recv_msg
+from util.logs import log_ressource_usage
 from util.config import c
+
 
 
 class AggregationClientObject:
@@ -17,7 +22,7 @@ class AggregationClientObject:
         self.id = client_id
         self.data_lstm = None
         self.data_fft = None
-        print(f"New Client - ID:{client_id}, Address:{address} ")
+        # print(f"New Client - ID:{client_id}, Address:{address} ")
 
 
 class AggregationWorker:
@@ -32,7 +37,9 @@ class AggregationWorker:
         self.clients = []
         self.aggregated_data_lstm = None
         self.aggregated_data_fft = None
-        print(f"AGGREGATIONWORKER: Listening on {ip_port_tuple}...")
+        self.received_bytes = {}
+        self.receive_log = f"{c.LOGS_PATH}/data_usage.json"
+        # print(f"AGGREGATIONWORKER: Listening on {ip_port_tuple}...")
 
     def accept_client(self):
         connection, address = self.listener.accept()
@@ -50,10 +57,13 @@ class AggregationWorker:
             send_msg(sock=client.connection, msg=self.aggregated_data_lstm)
             send_msg(sock=client.connection, msg=self.aggregated_data_fft)
 
+    def log_ressource_usage(self, dict):
+        # log the amount of data received as json
+        with open(self.receive_log, "w") as f:
+            json.dump(dict, f, indent=4)
+
     def aggregate(self):
         # print(f"AGGREGATION_WORKER: Aggregating Epoch {self.epoch}\n")
-        client_weights_lstm = []
-        client_weights_fft = []
         all_clients_weights_lstm = []
         all_clients_weights_fft = []
         aggregated_weights_lstm = []
@@ -61,10 +71,15 @@ class AggregationWorker:
 
         # iterate over all clients and save weights from received data
         for client in self.clients:
+            # print size of received data
             client_weights_lstm = pickle.loads(client.data_lstm)
             client_weights_fft = pickle.loads(client.data_fft)
             all_clients_weights_lstm.append(client_weights_lstm)
             all_clients_weights_fft.append(client_weights_fft)
+
+        if self.epoch == 0:
+            self.log_ressource_usage({'lstm': len(client.data_lstm) * self.clients_desired,
+                                     'fft_bytes': len(client.data_fft) * self.clients_desired})
 
         # average the weights from all clients
         for i in range(len(client_weights_lstm)):
@@ -96,9 +111,13 @@ class AggregationWorker:
 
 
 if __name__ == '__main__':
-    print("Start of Aggregator")
+
+    # start ressource logger thread
+    # Thread(target=log_ressource_usage, args=(f"logs/ressources_agg",)).start()
+
+    # print("Start of Aggregator")
     aggregator = AggregationWorker(ip_port_tuple=c.LISTEN_IP_PORT,
                                    model_path=f"model/federated/aggregated/{c.CLIENT_1['MODEL_PATH']}",
                                    clients_amount=c.NUM_CLIENTS,
-                                   max_iterations=100)
+                                   max_iterations=c.EPOCHS)
     aggregator.run()

@@ -1,0 +1,27 @@
+{
+    "baseline": {
+        "lstm": 0.9964
+    },
+    "centralized": {
+        "lstm": 0.9947,
+        "fft": 0.993
+    },
+    "federated": {
+        "CLIENT_0": {
+            "lstm": 0.9196,
+            "fft": 0.993
+        },
+        "CLIENT_1": {
+            "lstm": 0.391,
+            "fft": 0.486
+        },
+        "CLIENT_2": {
+            "lstm": 0,
+            "fft": 0
+        },
+        "CLIENT_3": {
+            "lstm": 0.1634,
+            "fft": 0.0608
+        }
+    }
+}
