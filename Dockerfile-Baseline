@@ -1,0 +1,18 @@
+FROM tensorflow/tensorflow:2.8.0
+
+ENV PYTHONUNBUFFERED=1
+ENV PATH_APP /app
+WORKDIR $PATH_APP
+
+
+ENV DATASET_PATH './data/bearing/experiment-2_full.csv'
+RUN echo DATASET_PATH
+# copy only the baseline folder and the requirements file
+COPY ./baseline .
+COPY $DATASET_PATH ./data.csv
+# COPY util ./util
+
+
+RUN pip install --no-cache-dir -r requirements.txt
+
+CMD [ "python", "./baseline.py" ]

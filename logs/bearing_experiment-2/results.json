@@ -10,29 +10,29 @@
         "fft_bytes": 557864
     },
     "centralized": {
-        "cpu": 175.419,
-        "memory": 39754.59,
-        "memory_mean": 651.71,
-        "memory_max": 723.32,
-        "runtime": 60.96,
+        "cpu": 224.923,
+        "memory": 23567.9,
+        "memory_mean": 654.66,
+        "memory_max": 738.93,
+        "runtime": 35.16,
         "f1": {
             "lstm": 0.9947,
             "fft": 0.993
         }
     },
     "federated": {
-        "cpu": 163.705,
-        "memory": 253630.3,
-        "memory_mean": 577.75,
-        "memory_max": 789.57,
-        "runtime": 163.65,
+        "cpu": 185.37900000000002,
+        "memory": 200472.48,
+        "memory_mean": 646.69,
+        "memory_max": 767.77,
+        "runtime": 58.82,
         "f1": {
             "CLIENT_0": {
-                "lstm": 0.9196,
+                "lstm": 0.8654,
                 "fft": 0.993
             },
             "CLIENT_1": {
-                "lstm": 0.391,
+                "lstm": 0.3969,
                 "fft": 0.486
             },
             "CLIENT_2": {
@@ -40,17 +40,17 @@
                 "fft": 0
             },
             "CLIENT_3": {
-                "lstm": 0.1634,
+                "lstm": 0.1661,
                 "fft": 0.0608
             }
         }
     },
     "baseline": {
-        "cpu": 2370.466,
-        "memory": 4152881.33,
-        "memory_mean": 13396.39,
-        "memory_max": 16481.78,
-        "runtime": 315.04,
+        "cpu": 2642.718,
+        "memory": 3414014.79,
+        "memory_mean": 13441.0,
+        "memory_max": 16338.32,
+        "runtime": 248.25,
         "f1": {
             "lstm": 0.9964
         }

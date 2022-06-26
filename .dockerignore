@@ -1,5 +1,7 @@
 # ignore all directories not needed for image run (minimize size)
 
 archive
+plots/
 .idea
-*4000.csv
+*.h5
+*_full.csv

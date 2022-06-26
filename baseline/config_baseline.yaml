@@ -7,7 +7,7 @@ TRAIN_SPLIT: 0.7
 VAL_SPLIT: 0.08
 DOWNSAMPLE: 1
 # experiment
-DATASET_PATH: 'data/2nd_test'
+DATASET_PATH: '../data/bearing/experiment-2_full.csv'
 EXPERIMENT_NAME: 'bearing_experiment-2'
-DATASET_COLUMN: 0
+DATASET_COLUMN: [0]
 
