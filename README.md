@@ -9,15 +9,15 @@ The goal of this is to evaluate the performance of federated learning on a relev
 
 # How To Use
 
-A full abstraction of the trainings- and evaluation process is provided in the `evaluation.py` file.
+The three models can be executed by their respective file, `training.py`, `worker_training.py` and `baseline/baseline.py`.
+
 Here, either the comparison baseline, the centralized approach or the federated approach can be individually trained
 and evaluated.
-The training uses parameters specified in the `config.yaml` or `config_baseline.yaml` file.
+The training uses parameters specified in the `config.yaml` file.
 
 # Project Structure
 
 Both autoencoder models and the relevant functions for training and data preparation (normalization and batch-sizing) are implemented in `training.py`.
-Some plotting functions are implemented in `plotting.py`, which are used to plot the most relevant metrics and some grafics about a models anomaly detection performance.
 
 The federated learning implementation consists of two different worker scripts `worker_training.py` and `worker_aggregation.py`. 
 

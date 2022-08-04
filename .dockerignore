@@ -1,7 +1,17 @@
 # ignore all directories not needed for image run (minimize size)
 
-archive
+archive/
 plots/
+model/
+hyper_tuning/
+logs/
 .idea
-*.h5
-*_full.csv
+.git
+# data/
+__pycache__
+  **/*Old.csv
+
+
+
+# BASELINE -> auskommentieren !!!!!!!!!
+  **/*full.csv

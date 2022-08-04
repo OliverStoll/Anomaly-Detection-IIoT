@@ -3,16 +3,15 @@ start = datetime.now()
 import socket
 import pickle
 import os
-import random
-from threading import Thread
-from keras.models import load_model
+from time import sleep
+
 
 from training import Training
-from util.logs import log_ressource_usage
 from util.tcp_messages import send_msg, recv_msg
-from util.config import c, client_config
+from util.config import c, config
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+sleep_times = {"bearing_experiment-1": 35, "bearing_experiment-2": 22, "bearing_experiment-3": 90}
 
 
 class TrainingWorker:
@@ -24,16 +23,31 @@ class TrainingWorker:
     training cycle.
     """
 
-    def __init__(self, connect_ip_port: (str, int), data_path: str, data_cols: list, model_path: str):
-        self.trainer = Training(data_path=data_path, data_columns=data_cols)
-        self.trainer.verbose = 2
-        self.model_path = model_path
+    def __init__(self, connect_ip_port: (str, int), experiment_name: str, train_cols: list, client_name: str):
+        if os.getenv("CLIENT_NAME") == "CLIENT_0" and os.getenv("TRANSFER_LEARNING"):
+            self.trainer = Training(experiment_name=experiment_name, load_columns=[0, 1], train_columns=[1],
+                                    model_type="federated")
+        else:
+            self.trainer = Training(experiment_name=experiment_name, load_columns=train_cols, train_columns=[0],
+                                    model_type="federated")
+        self.trainer.verbose = 1
         self.epoch = 0
+        self.client_name = client_name
+        self.experiment_name = experiment_name
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.socket.connect((connect_ip_port[0], connect_ip_port[1]))
+        print(f"TrainingWorker: Connecting to {connect_ip_port}...")
+        try:
+            self.socket.connect((connect_ip_port[0], connect_ip_port[1]))
+        except ConnectionRefusedError:
+            print("TrainingWorker: ERROR... trying via docker...")
+            try:
+                self.socket.connect(("host.docker.internal", connect_ip_port[1]))
+            except ConnectionRefusedError:
+                print("TrainingWorker: host.docker.interal FAILED")
+                exit(1)
 
     def train_round(self, epochs):
-        self.trainer.train_models(epochs=epochs)  # TODO: check efficiency
+        self.trainer.train_models(epochs=epochs)
         self.epoch += epochs
 
     def send_weights(self):
@@ -53,32 +67,43 @@ class TrainingWorker:
         self.trainer.model_fft.set_weights(weights_fft)
 
     def run(self, rounds, epochs_per_round):
+        client_id = int(self.client_name.split("_")[1])
+        sleep_secs = client_id * sleep_times[self.experiment_name]
         for i in range(rounds):
             print(f"Round {i}")
+            if not os.getenv("DOCKER_MODE"):
+                print(f"Waiting {sleep_secs}s for other workers to finish their training...")
+                sleep(sleep_secs)
             self.train_round(epochs=epochs_per_round)
             self.send_weights()
             self.receive_weights()
-        self.trainer.save_models(self.model_path)
-        # self.trainer.evaluate(show_all=True)
+
+        if not os.getenv("DOCKER_MODE"):
+            print(f"Waiting {sleep_secs}s for other workers to finish their training...")
+            sleep(sleep_secs)
+        self.trainer.save_results()
 
 
 if __name__ == '__main__':
 
-    # print all environment variables
+    # EVALUATE TRAINING AS DOCKER IMAGE
+    for path, subdirs, files in os.walk("./data"):
+        for name in files:
+            print(os.path.join(path, name))
+
     print(f"TRAINING_WORKER: Starting as {os.environ.get('CLIENT_NAME')} ")
-    trainer = TrainingWorker(connect_ip_port=c.CONNECT_IP_PORT,
-                             data_path=client_config['DATASET_PATH'],
-                             data_cols=client_config['DATASET_COLUMNS'],
-                             model_path=f"model/{c.EXPERIMENT_NAME}/federated/{os.environ.get('CLIENT_NAME')}")
+    ip = os.getenv("IP", c.CONNECT_IP_PORT[0])
+    port = int(os.getenv("PORT", c.CONNECT_IP_PORT[1]))
+    epochs = int(os.getenv("EPOCHS", c.EPOCHS))
+    connect_ip_port = (ip, port)
+    client_config = config[os.getenv("CLIENT_NAME")]
+    experiment_name = os.getenv("EXPERIMENT_NAME", config['EXPERIMENT_NAME'])
+    train_columns = os.getenv("TRAIN_COLUMN", client_config[experiment_name])
 
-    # start ressources logging
-    t = Thread(target=log_ressource_usage, args=(f"{c.LOGS_PATH}/ressources_{os.getenv('CLIENT_NAME').lower()}",))
-    t.start()
-    time_until_training = (datetime.now() - start).total_seconds()
-    print(f"TIME_UNTIL_TRAINING:{time_until_training:.2f}")
-
-    trainer.run(rounds=c.EPOCHS, epochs_per_round=1)
-
-    t.join()
+    trainer = TrainingWorker(connect_ip_port=connect_ip_port,
+                             experiment_name=experiment_name,
+                             train_cols=train_columns,
+                             client_name=os.environ.get('CLIENT_NAME'))
+    trainer.run(rounds=epochs, epochs_per_round=c.EPOCHS_PER_ROUND)
 
 

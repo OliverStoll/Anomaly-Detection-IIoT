@@ -1,14 +1,15 @@
-FROM tensorflow/tensorflow:2.8.0
+FROM tensorflow/tensorflow:2.9.1
 
 ENV PYTHONUNBUFFERED=1
 ENV PATH_APP /app
 WORKDIR $PATH_APP
 
 # the config file to be imported can be changed here and through -e in Kubernetes
+ENV DOCKER_MODE True
 ENV CONFIG_FILE config.yaml
 
-COPY .. .
+COPY . .
 
 RUN pip install --no-cache-dir -r requirements.txt
 
-CMD [ "python", "./worker_training.py" ]
+CMD [ "python", "./worker_aggregation.py" ]

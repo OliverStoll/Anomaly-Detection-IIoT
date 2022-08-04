@@ -1,0 +1,23 @@
+FROM tensorflow/tensorflow:2.9.1
+
+ENV PYTHONUNBUFFERED=1
+ENV PATH_APP /app
+WORKDIR $PATH_APP
+
+
+# ENV DATASET_PATH 'data/bearing/experiment-2_full.csv'
+ENV DOCKER_MODE True
+ENV PYTHONUNBUFFERED=1
+# RUN echo DATASET_PATH
+
+# copy only the baseline folder and the requirements file
+COPY ./baseline .
+COPY ./data ./data
+COPY ./requirements.txt ./requirements.txt
+COPY ./configs/config.yaml ./config.yaml
+
+
+RUN pip install --no-cache-dir -r requirements.txt
+
+CMD [ "python", "./baseline_old.py" ]
+

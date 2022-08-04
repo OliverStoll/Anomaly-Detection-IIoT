@@ -2,15 +2,22 @@
 CONNECT_IP_PORT: ['localhost', 55555]
 LISTEN_IP_PORT: ['0.0.0.0', 55555]
 NUM_CLIENTS: 4
+EPOCHS_PER_ROUND: 1
 
 # training
-EPOCHS: 10
+EPOCHS: 25
 BATCH_SIZE: 64
 LR_DECAY: 0.01
-LSTM:
+
+BASELINE:
+    DOWNSAMPLE: 1
     LEARNING_RATE: 0.001
-    OUTER_LAYER_SIZE: 256
-    HIDDEN_LAYER_SIZE: 8
+    LOOKBACK: 10
+
+LSTM:
+    LEARNING_RATE: 0.0005
+    OUTER_LAYER_SIZE: 128
+    HIDDEN_LAYER_SIZE: 16
     LAYER_AMOUNT: 1
 FFT:
     LEARNING_RATE: 0.001
@@ -19,40 +26,42 @@ FFT:
     LAYER_AMOUNT: 2
 
 # data
-SPLIT: 100
-TRAIN_SPLIT: 0.5
-VAL_SPLIT: 0.08
-USE_OPTIMAL_THRESHOLD: False
-THRESHOLD_DEVIATIONS: 7
-THRESHOLD_CALCULATION_PERIOD: [0.0, 0.7]
+WINDOW_SIZE: 100
+WINDOW_STEP: 50
+SPLIT: 1000
+TRAIN_SPLIT: 0.7
+VAL_SPLIT: 0.00
 
 # evaluation
-THRESHOLD_LSTM: 0.5
-THRESHOLD_FFT: 15
-PLOT_YLIM_VIBRATION: 1
-PLOT_YLIM_LOSSES: 1
-PLOT_YLIM_SCORES_FACTOR: 10
-PLOT_SPLITS: False
+THRESHOLD_STD: 4
+ROLLING_MIN: 3
+LOGS_PATH: "test/"
 
 # logs
-EXPERIMENT_NAME: 'bearing_experiment-2'
-LOGS_PATH: 'logs/bearing_experiment-2'
+EXPERIMENT_NAME: 'bearing_experiment-1'
+LOAD_COLUMNS: [0, 1, 2, 3] # [0, 2, 4, 6] #
+LOAD_COLUMNS_DICT:
+    bearing_experiment-1: [0, 2, 4, 6]
+    bearing_experiment-2: [0, 1, 2, 3]
+    bearing_experiment-3: [0, 1, 2, 3]
+TRAIN_COLUMNS: [0, 1, 2, 3]
+NUM_FEATURES: 1
 
 
 # experiment
 CLIENT_0:
-    DATASET_PATH: data/bearing/experiment-2
-    DATASET_COLUMNS: [0]
-    MODEL_PATH: bearing_experiment-2/bearing-0
+    bearing_experiment-1: [ 0 ]
+    bearing_experiment-2: [ 0 ]
+    bearing_experiment-3: [ 0 ]
 CLIENT_1:
-    DATASET_PATH: data/bearing/experiment-2
-    DATASET_COLUMNS: [1]
-    MODEL_PATH: bearing_experiment-2/bearing-1
+    bearing_experiment-1: [ 2 ]
+    bearing_experiment-2: [ 1 ]
+    bearing_experiment-3: [ 1 ]
 CLIENT_2:
-    DATASET_PATH: data/bearing/experiment-2
-    DATASET_COLUMNS: [2]
-    MODEL_PATH: bearing_experiment-2/bearing-2
+    bearing_experiment-1: [ 4 ]
+    bearing_experiment-2: [ 2 ]
+    bearing_experiment-3: [ 2 ]
 CLIENT_3:
-    DATASET_PATH: data/bearing/experiment-2
-    DATASET_COLUMNS: [3]
-    MODEL_PATH: bearing_experiment-2/bearing-3
+    bearing_experiment-1: [ 6 ]
+    bearing_experiment-2: [ 3 ]
+    bearing_experiment-3: [ 3 ]

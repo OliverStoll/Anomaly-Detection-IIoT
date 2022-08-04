@@ -174,7 +174,7 @@ class Resampler:
             os.remove(save_path)
 
         temp_df = df.iloc[:,:-1]
-        factor = 5
+        factor = self.old_sampling_rate // self.new_sampling_rate
         avg_df = temp_df.groupby(df.index // factor)
         avg_df = avg_df.mean()
         print(avg_df)
@@ -191,5 +191,56 @@ def _resample_all_to_defaults(resample_rates):
                   ).resample_all_csv_in_directory()
 
 
+def restructure_data(dir_path):
+    """ Restructure the file to be a single column per feature. VERY HACKY! """
+
+
+    files = [f for f in os.listdir(dir_path) if f.endswith("2_1000.csv")]
+    for file in files:
+        if file.endswith("1_1000.csv"):
+            df = pd.read_csv(f"{dir_path}/{file}", usecols=[0,2,4,6])
+        else:
+            df = pd.read_csv(f"{dir_path}/{file}", usecols=[0,1,2,3])
+
+
+        # iterate over all columns and concatenate them to a single list
+        data = []
+        for i in range(df.shape[1]):
+            data.extend(df.iloc[:, i])
+        # round to 4 decimals
+        data = [round(i, 4) for i in data]
+        # save as csv
+        with open(f"{dir_path}/{file.replace('_','_COL-')}", "w") as f:
+            f.write("Vibration\n")
+            for i in data:
+                f.write(str(i) + ",\n")
+
+
 if __name__ == '__main__':
-    _resample_all_to_defaults(resample_rates=[4096])
+
+    file_path = "data/bearing_experiment-3"
+    # load data from file as dataframe
+    df = pd.read_csv(f"{file_path}/full.csv")
+    print(len(df) // 20480)
+    save_path = f"{file_path}/1000-NEW.csv"
+    # store columns in list
+    columns = df.columns.tolist()[:-1]
+    len_columns = len(columns)
+
+    array = df.iloc[:, :-1].to_numpy().T
+    array = array.reshape(array.shape[0], -1, 20480)
+    split_list = [np.array_split(array[i][j], 1000) for i in range(array.shape[0]) for j in range(array.shape[1])]
+    split_list = [split_list[i][j].mean() for i in range(len(split_list)) for j in range(len(split_list[i]))]
+    split_array = np.array(split_list)
+    split_array = split_array.reshape(len_columns, -1, 1000)
+    split_df = pd.DataFrame(split_array.reshape(len_columns, -1).T, columns=columns)
+
+    # plot all four columns
+    for i in range(4):
+        plt.figure(figsize=(20, 20))
+        data = split_df[columns[i]]
+        plt.plot(data)
+        plt.show()
+
+    split_df.to_csv(save_path, index=False)
+    exit(0)

@@ -1,3 +1,4 @@
+import os
 import tensorflow as tf
 import keras_tuner as kt
 from tensorflow.keras import optimizers
@@ -10,7 +11,7 @@ from util.config import c, client_config
 
 def lstm_autoencoder_model(hp=None):
     """
-    A function to create a LSTM-autoencoder with a single hidden layer.
+    A function to create a LSTM-autoencoder.
 
     The size of the hidden layer is determined by the number of features in the input.
     The size of the LSTM layers is dependant on the LAYERS_EXPONENT parameter in the files.
@@ -40,31 +41,28 @@ def lstm_autoencoder_model(hp=None):
     optimizer = optimizers.Adam(learning_rate=learning_rate, clipnorm=1.0, clipvalue=0.5)
 
     # create the input layer
-    timesteps = c.SPLIT
-    num_features = len(client_config['DATASET_COLUMNS'])
+    timesteps = os.getenv('WINDOW_SIZE', c.WINDOW_SIZE)
+    num_features = c.NUM_FEATURES
     inputs = Input(shape=(timesteps, num_features))
     x = inputs
 
+    layer_kwdict ={'activation': 'relu',
+                   'kernel_regularizer':l2(1e-7),
+                   'activity_regularizer':l2(1e-7)}
+
     # create the encoder LSTM layers
     for layer_size in layer_sizes[::-1]:
-        x = LSTM(layer_size, activation='tanh', return_sequences=True,
-                 kernel_regularizer=l2(1e-7), activity_regularizer=l2(1e-7))(x)
+        x = LSTM(layer_size, return_sequences=True, **layer_kwdict)(x)
 
     # create the last encoder layer with hp_hidden_size
-    x = LSTM(hidden_size, activation='tanh', return_sequences=False,
-             kernel_regularizer=l2(1e-7), activity_regularizer=l2(1e-7))(x)
-
-    # pass the encoded data through a dense layer to the decoder
+    x = LSTM(hidden_size, return_sequences=False, **layer_kwdict)(x)
     x = RepeatVector(timesteps)(x)
+    # x = Dense(hidden_size, **layer_kwdict)(x)  # use dense layer instead for hidden layer
 
-    # create the first decoder layer with hp_hidden_size
-    x = LSTM(hidden_size, activation='tanh', return_sequences=True,
-             kernel_regularizer=l2(1e-7), activity_regularizer=l2(1e-7))(x)
 
     # create the decoder LSTM layers
     for layer_size in layer_sizes:
-        x = LSTM(layer_size, activation='tanh', return_sequences=True,
-                 kernel_regularizer=l2(1e-7), activity_regularizer=l2(1e-7))(x)
+        x = LSTM(layer_size, return_sequences=True, **layer_kwdict)(x)
 
     # create the plots layer
     output = TimeDistributed(Dense(num_features))(x)
@@ -103,9 +101,8 @@ def fft_autoencoder_model(hp=None):
     optimizer = optimizers.Adam(learning_rate=learning_rate, clipnorm=1.0, clipvalue=0.5)
 
     # create the input layer
-    timesteps = c.SPLIT
-    num_features = len(client_config['DATASET_COLUMNS'])
-    inputs = Input(shape=(timesteps, num_features))
+    timesteps = os.getenv('WINDOW_SIZE', c.WINDOW_SIZE)
+    inputs = Input(shape=(timesteps, c.NUM_FEATURES))
     x = Flatten()(inputs)
 
     # create the encoder layers
@@ -120,10 +117,15 @@ def fft_autoencoder_model(hp=None):
         x = Dense(layer_size, activation='relu', kernel_regularizer=l2(1e-7), activity_regularizer=l2(1e-7))(x)
 
     # create the plots layer
-    x = Dense(timesteps * num_features)(x)
-    output = Reshape((timesteps, num_features))(x)
+    x = Dense(timesteps * c.NUM_FEATURES)(x)
+    output = Reshape((timesteps, c.NUM_FEATURES))(x)
 
     model = Model(inputs=inputs, outputs=output)
     model.compile(optimizer=optimizer, loss='mse')
 
     return model
+
+
+if __name__ == '__main__':
+    model = lstm_autoencoder_model()
+    model.summary()
