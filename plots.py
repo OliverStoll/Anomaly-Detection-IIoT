@@ -65,7 +65,7 @@ class Plotter:
             mse = np.array(self.results['baseline']['lstm']['mse'])
             mse = mse[:len(mse)-len(mse) % self.num_bearings]
             mse = mse.reshape(-1, self.num_bearings, order='F')
-            mse = np.concatenate([mse[:20], mse])  # baseline temporalize
+            mse = np.concatenate([mse[:20], mse[:-20]])  # baseline temporalize reihenfolge (lookback)
             self.mse['baseline'] = pd.DataFrame(mse)
         if 'centralized' in self.models:
             self.mse['centralized'] = np.array(self.results['centralized']['lstm']['mse']).reshape(-1, self.num_bearings, order='F')
@@ -330,28 +330,22 @@ class Plotter:
         fig.show()
 
     def run(self):
-        # self.plot_data(ylim=7)
-        # self.plot_RE()
-        # self.plot_certainty(center_factor=.5, max_factor=2.)
-        # self.plot_period(chunk_numbers=[970], mean_window=3, line_width=0.5)
-        # self.plot_resources()
-        self.plot_certainty_transfer()
+        self.plot_data(ylim=7)
+        self.plot_RE()
+        self.plot_certainty(center_factor=.5, max_factor=2.)
+        self.plot_period(chunk_numbers=[970], mean_window=3, line_width=0.5)
+        self.plot_resources()
+        if 'federated_transfer' in self.models:
+            self.plot_certainty_transfer()
 
 
-def combine_federated_json(experiment_name="bearing_experiment-2", is_transfer=False):
+def combine_federated_json(experiment_name="bearing_experiment-2"):
     results = {"0": {}, "1": {}, "2": {}, "3": {}}
     for i in [0, 1, 2, 3]:
         results[str(i)] = json.load(open(f"logs/{experiment_name}/federated_CLIENT_{i}.json"))
-    if is_transfer:
-        results["1"] = {"lstm": {"mse": results["0"]["lstm"]["mse"][984:]}}
-        results["0"] = {"lstm": {"mse": results["0"]["lstm"]["mse"][:984]}}
     # save the results
     with open(f"logs/{experiment_name}/federated.json", "w") as f:
         json.dump(results, f)
-    predictions = json.load(open(f"logs/{experiment_name}/federated_CLIENT_0_predictions.json"))
-    # save the predictions
-    with open(f"logs/{experiment_name}/federated_predictions.json", "w") as f:
-        json.dump(predictions, f)
 
 
 def plot_all_experiments():
@@ -386,32 +380,13 @@ def plot_all_experiments():
 
 if __name__ == '__main__':
 
-    if False:
-        Plotter.plot_all_experiments_federated()
-        exit(0)
-
-        # load baseline predictions
-        baseline_predictions = json.load(open("logs/bearing_experiment-2/baseline_predictions.json"))
-        # plot
-        print("Plotting...")
-        baseline_predictions = np.array(baseline_predictions[:20480])
-        # split the data into 1000 chunks
-        baseline_1000 = np.array_split(baseline_predictions, 1000)
-        baseline_1000_mean = [np.mean(baseline_1000[i]) for i in range(len(baseline_1000))]
-        scaler = StandardScaler()
-        data = scaler.fit_transform(np.array(baseline_1000_mean).reshape(-1, 1))
-        plt.figure(figsize=(12, 10))
-        plt.plot(data)
-        plt.show()
-        exit(0)
-
-    # plot all experiments
+    # plot experiment 2 for faulty (0) and healty (1) bearing
     experiment_name = f"bearing_experiment-2"
     bearings = [0, 1]
 
-    plotter = Plotter(columns=bearings, rolling_min=2,
+    plotter = Plotter(columns=bearings, rolling_min=3,
                       experiment_name=experiment_name,
                       models=["federated", "centralized", "baseline"]
                       )
-    plotter.plot_resources()
+    plotter.run()
 
