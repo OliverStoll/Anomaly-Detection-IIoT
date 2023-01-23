@@ -13,7 +13,6 @@ autoencoder-based anomaly detection model under the given constraints.\
 This model was then utilized in a federated learning framework to improve generalizability, 
 while gaining data privacy from each individual device by not sharing actual training data.
 
-![Normal vs. Abnormal](plots/ReadMe/E2-Chunk.png)
 
 ### Evaluation
 
@@ -22,15 +21,13 @@ anomaly detection in rotating machines, which are commonly found in manufacturin
 Here, I compared the performance of the federated learning approach to a centralized approach, as well as a baseline model that was resource-unconstrained.
 
 
-![Transferlearning evaluation](plots/ReadMe/E2-Transferlearning.png)
-
 ### Results
 
 My research showed, that the proposed model improvements and chosen federated learning approach were able to achieve 
 similar performance in the models anomaly detection capabilites, while at the same time strongly improving resource consumption and allowing for data privacy.
 
 ![Resource evaluation](plots/ReadMe/E2-Resources-v2.png)
-
+![Transferlearning evaluation](plots/ReadMe/E2-Transferlearning.png)
 
 # Project Structure
 
