@@ -6,13 +6,17 @@ focused on an industrial application in the resource-limited domain of the Inter
 As industrial IoT devices are often resource-limited, they are neither able to perform computational intense model training 
 nor to store large amounts of data. 
 
-### Contribution
+### Architecture
 
 My work took a stepwise approach to this problem, first optimizing the performance of an 
 autoencoder-based anomaly detection model under the given constraints.\
 This model was then utilized in a federated learning framework to improve generalizability, 
 while gaining data privacy from each individual device by not sharing actual training data.
 
+
+| Federated Learning IIoT Use Case Scenario                 | Federated Learning Training Cycle                                             |
+|-----------------------------------------------------------|-------------------------------------------------------------------------------|
+| ![Federated Learning](plots/ReadMe/federated-factory.png) | ![Federated Learning Architecture](plots/ReadMe/federated-training-cycle.png) |
 
 ### Evaluation
 
@@ -26,8 +30,8 @@ Here, I compared the performance of the federated learning approach to a central
 My research showed, that the proposed model improvements and chosen federated learning approach were able to achieve 
 similar performance in the models anomaly detection capabilites, while at the same time strongly improving resource consumption and allowing for data privacy.
 
-![Resource evaluation](plots/ReadMe/E2-Resources-v2.png)
-![Transferlearning evaluation](plots/ReadMe/E2-Transferlearning.png)
+![Resource evaluation](plots/ReadMe/E2-Resources-v2.png) 
+![Transferlearning evaluation](plots/ReadMe/transferlearning-comparison.png)
 
 # Project Structure
 
