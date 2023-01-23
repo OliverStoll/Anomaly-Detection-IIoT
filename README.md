@@ -18,14 +18,11 @@ while gaining data privacy from each individual device by not sharing actual tra
 |-----------------------------------------------------------|-------------------------------------------------------------------------------|
 | ![Federated Learning](plots/ReadMe/federated-factory.png) | ![Federated Learning Architecture](plots/ReadMe/federated-training-cycle.png) |
 
-### Evaluation
+### Evaluation & Results
 
 To evaluate the success of my research, I conducted a case study on a real-world industrial application of 
 anomaly detection in rotating machines, which are commonly found in manufacturing.\
 Here, I compared the performance of the federated learning approach to a centralized approach, as well as a baseline model that was resource-unconstrained.
-
-
-### Results
 
 My research showed, that the proposed model improvements and chosen federated learning approach were able to achieve 
 similar performance in the models anomaly detection capabilites, while at the same time strongly improving resource consumption and allowing for data privacy.
