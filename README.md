@@ -33,20 +33,16 @@ similar performance in the models anomaly detection capabilites, while at the sa
 ![Resource evaluation](plots/ReadMe/E2-Resources-v2.png) 
 ![Transferlearning evaluation](plots/ReadMe/transferlearning-comparison.png)
 
-# Project Structure
 
-The autoencoder model and relevant functions for training and data preparation (i.e. normalization, batch-sizing..) are implemented in `training.py`.
-The federated learning framework is implemented using two different worker scripts `worker_training.py` and `worker_aggregation.py`.
+
+# Project Structure & How to Use
+
+The autoencoder model and relevant functions for training and data preparation (i.e. normalization, batch-sizing..) are implemented in `training.py`.\
+The federated learning framework is implemented using two different worker scripts `worker_training.py` and `worker_aggregation.py`.\
 These are containerized by their corresponding dockerfiles in `/build`, producing two docker images that were run on a google compute engine testbed,
 for evaluation.
 
-
-
-# How To Use
-
-The two models can be executed by their respective file, `training.py`, and `baseline/baseline.py`.
-Here, either the resource-optimized model or the comparison baseline can be individually trained
-and evaluated.
+The two models can be executed by their respective file, `training.py`, and `baseline/baseline.py`.\
+Here, either the resource-optimized model or the comparison baseline can be individually trained and evaluated.\
 Relevant training parameters can be specified in the `config.yaml` file.
-
 To run the federated learning approach, the docker images need to be built which can then be deployed to a cloud solution such as GCP.
