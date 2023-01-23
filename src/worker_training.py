@@ -1,5 +1,4 @@
 from datetime import datetime
-start = datetime.now()
 import socket
 import pickle
 import os
@@ -10,6 +9,7 @@ from training import Training
 from util.tcp_messages import send_msg, recv_msg
 from util.config import c, config
 
+start = datetime.now()
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 sleep_times = {"bearing_experiment-1": 35, "bearing_experiment-2": 22, "bearing_experiment-3": 90}
 

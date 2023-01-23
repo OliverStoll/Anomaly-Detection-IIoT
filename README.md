@@ -1,25 +1,49 @@
-# Bachelor Thesis
+# Federated Learning for Autoencoder-based Anomaly Detection in the Industrial IoT
 
-The implementation of my federated learning approach for autoencoder-based condition monitoring of rotating machines.
+This repository contains the implementation of a federated learning approach to autoencoder-based condition monitoring, 
+focused on an industrial application in the resource-limited domain of the Internet of Things.
+As industrial IoT devices are often resource-limited, they are neither able to perform computational intense model training 
+nor to store large amounts of data. 
 
-The approach consists of a baseline of two different autoencoder models, one for raw vibration data and one for the computed fast-fourier-transformation (fft) of the data.
-These autoencoder models are used to detect anomalies on the two different data sets provided, once fully centralized and once as a federated learning approach.
+### Contribution
 
-The goal of this is to evaluate the performance of federated learning on a relevant real-life use-case for the IIoT.
+My work took a stepwise approach to this problem, first optimizing the performance of an 
+autoencoder-based anomaly detection model under the given constraints.
+This model was then utilized in a federated learning framework to improve generalizability, 
+while gaining data privacy from each individual device by not sharing actual training data.
 
-# How To Use
+![Normal vs. Abnormal](plots/E2-Chunk.png)
 
-The three models can be executed by their respective file, `training.py`, `worker_training.py` and `baseline/baseline.py`.
+### Evaluation
 
-Here, either the comparison baseline, the centralized approach or the federated approach can be individually trained
-and evaluated.
-The training uses parameters specified in the `config.yaml` file.
+To evaluate the success of my research, I conducted a case study on a real-world industrial application of anomaly detection in rotating machines, which are commonly found in manufacturing.
+Here, I compared the performance of the federated learning approach to a centralized approach, as well as a baseline model that was resource-unconstrained.
+
+
+![Transferlearning evaluation](plots/E2-Transferlearning.png)
+
+### Results
+
+My research showed, that the proposed model improvements and chosen federated learning approach were able to achieve 
+similar performance in the models anomaly detection capabilites, while at the same time strongly improving resource consumption and allowing for data privacy.
+
+![Resource evaluation](plots/E2-Resources-v2.png)
+
 
 # Project Structure
 
-Both autoencoder models and the relevant functions for training and data preparation (normalization and batch-sizing) are implemented in `training.py`.
+The autoencoder model and relevant functions for training and data preparation (i.e. normalization, batch-sizing..) are implemented in `training.py`.
+The federated learning framework is implemented using two different worker scripts `worker_training.py` and `worker_aggregation.py`.
+These are containerized by their corresponding dockerfiles in `/build`, producing two docker images that were run on a google compute engine testbed,
+for evaluation.
 
-The federated learning implementation consists of two different worker scripts `worker_training.py` and `worker_aggregation.py`. 
 
-These are containerized by their corresponding dockerfiles in `/configs`, producing two docker images that are ment to be run on a google compute engine testbed,
-for evaluation of the quality of the federated learning approach.
+
+# How To Use
+
+The two models can be executed by their respective file, `training.py`, and `baseline/baseline.py`.
+Here, either the resource-optimized model or the comparison baseline can be individually trained
+and evaluated.
+Relevant training parameters can be specified in the `config.yaml` file.
+
+To run the federated learning approach, the docker images need to be built which can then be deployed to a cloud solution such as GCP.
