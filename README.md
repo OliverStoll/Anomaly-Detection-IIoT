@@ -1,4 +1,4 @@
-# Federated Learning for Autoencoder-based Anomaly Detection in the Industrial IoT
+# 🧾 Federated Learning for Autoencoder-based Anomaly Detection in the Industrial IoT
 
 This repository contains the implementation of a federated learning approach to autoencoder-based condition monitoring, 
 focused on an industrial application in the resource-limited domain of the Internet of Things.
