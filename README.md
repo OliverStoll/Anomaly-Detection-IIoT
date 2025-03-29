@@ -43,10 +43,9 @@ The baseline model can be executed using `src/baseline.py`.
 Here, either the resource-optimized model or the comparison baseline can be individually trained and evaluated.
 Finally, the federated learning framework is implemented using two different worker scripts `worker_training.py` and `worker_aggregation.py`.
 
+All relevant training parameters, such as LR, batch size, or federated clients & connection parameters can be specified in the central `config.yaml` file.
+
 ### Build
 Both models as well as the workers of the federated learning framework are containerized by their corresponding dockerfiles in `/build`, creating docker images that can be executed on a google compute engine testbed for evaluation.
 To run the federated learning approach, the docker images need to be built which can then be either locally executed or deployed to a cloud solution such as GCP.
-
-### Configuration
-All relevant training parameters, such as LR, batch size, or federated clients & connection parameters can be specified in the central `config.yaml` file.
 
