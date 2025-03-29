@@ -26,7 +26,7 @@ Here, we compared the performance of the (resource-efficient) federated learning
 Our research showed, that:
 1. The proposed resource-efficient model was able to achieve similar anomaly detection performance to the baseline architecture.
 2. Even when used in a federated learning framework, only able to share model weights instead of data, instances of the resource-efficient model were still able to achive equal certainty of defect predictions.
-3. At the same time, this approach strongly improving resource consumption and guaranteed data privacy.
+3. At the same time, this approach succeeded in strongly improving resource consumption and guaranteeing data privacy, as no trainings data was ever required to leave individual devices.
 
 ![Resource evaluation](plots/ReadMe/E2-Resources-v2.png) 
 ![Transferlearning evaluation](plots/ReadMe/transferlearning-comparison.png)
