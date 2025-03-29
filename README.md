@@ -9,8 +9,8 @@ nor to store large amounts of data.
 ### 🔧 Architecture
 
 This work takes a stepwise approach to this problem:
-- 1. Optimizing the performance of an autoencoder-based anomaly detection model under the given constraints.
-- 2. This model was then utilized in a federated learning framework to improve generalizability, while at the same time guaranteeing data privacy for each individual device, by not sharing actual training data but only model weights.
+1. Optimizing the performance of an autoencoder-based anomaly detection model under the given constraints.
+2. This model was then utilized in a federated learning framework to improve generalizability, while at the same time guaranteeing data privacy for each individual device, by not sharing actual training data but only model weights.
 
 
 | Federated Learning IIoT Use Case Scenario                 | Federated Learning Training Cycle                                             |
@@ -24,9 +24,9 @@ anomaly detection in rotating machines, which are commonly found in manufacturin
 Here, we compared the performance of the (ressource-efficient) federated learning approach to a (ressource-efficient) centralized approach, as well as a baseline model that was resource-unconstrained.
 
 Our research showed, that:
-- 1. The proposed ressource-efficient model was able to achieve similar anomaly detection performance to the baseline architecture.
-- 2. Even when used in a federated learning framework, only able to share model weights instead of data, instances of the ressource-efficient model were still able to achive equal certainty of defect predictions.
-- 3. At the same time, this approach strongly improving resource consumption and guaranteed data privacy.
+1. The proposed ressource-efficient model was able to achieve similar anomaly detection performance to the baseline architecture.
+2. Even when used in a federated learning framework, only able to share model weights instead of data, instances of the ressource-efficient model were still able to achive equal certainty of defect predictions.
+3. At the same time, this approach strongly improving resource consumption and guaranteed data privacy.
 
 ![Resource evaluation](plots/ReadMe/E2-Resources-v2.png) 
 ![Transferlearning evaluation](plots/ReadMe/transferlearning-comparison.png)
