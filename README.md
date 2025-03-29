@@ -12,7 +12,7 @@ This work takes a stepwise approach to this problem:
 1. Optimizing the performance of an autoencoder-based anomaly detection model under the given constraints.
 2. This model was then utilized in a federated learning framework to improve generalizability, while at the same time guaranteeing data privacy for each individual device, by not sharing actual training data but only model weights.
 
-
+ 
 Federated Learning IIoT Use Case Scenario                 | Federated Learning Training Cycle                                             
 ----------------------------------------------------------|-------------------------------------------------------------------------------
 ![Federated Learning](plots/ReadMe/federated-factory.png) | ![Federated Learning Architecture](plots/ReadMe/federated-training-cycle.png) 
