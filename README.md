@@ -34,7 +34,7 @@ Our research showed, that:
 
 
 
-# 🗂️ Project Structure & How to Use
+## 🗂️ Project Structure & How to Use
 
 ### Models & Training
 The ressource-efficient autoencoder model and relevant functions for training and data preparation (i.e. normalization, batch-sizing..) are implemented in `src/training.py`.
