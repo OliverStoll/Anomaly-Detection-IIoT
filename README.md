@@ -6,7 +6,7 @@ focused on an industrial application in the resource-limited domain of the Inter
 As industrial IoT devices are often resource-limited, they are neither able to perform computational intense model training 
 nor to store large amounts of data. 
 
-### 🔧 Architecture
+## 🔧 Architecture
 
 This work takes a stepwise approach to this problem:
 1. Optimizing the performance of an autoencoder-based anomaly detection model under the given constraints.
@@ -17,10 +17,11 @@ This work takes a stepwise approach to this problem:
 |-----------------------------------------------------------|-------------------------------------------------------------------------------|
 | ![Federated Learning](plots/ReadMe/federated-factory.png) | ![Federated Learning Architecture](plots/ReadMe/federated-training-cycle.png) |
 
-### 📊 Evaluation & Results
+## 📊 Evaluation & Results
 
 To evaluate the success of this approach, we conducted a case study on a real-world industrial application of 
 anomaly detection in rotating machines, which are commonly found in manufacturing.
+
 Here, we compared the performance of the (ressource-efficient) federated learning approach to a (ressource-efficient) centralized approach, as well as a baseline model that was resource-unconstrained.
 
 Our research showed, that:
@@ -38,11 +39,12 @@ Our research showed, that:
 ### Models & Training
 The ressource-efficient autoencoder model and relevant functions for training and data preparation (i.e. normalization, batch-sizing..) are implemented in `src/training.py`.
 The baseline model can be executed using `src/baseline.py`.
+
 Here, either the resource-optimized model or the comparison baseline can be individually trained and evaluated.
 Finally, the federated learning framework is implemented using two different worker scripts `worker_training.py` and `worker_aggregation.py`.
 
 ### Configuration
-All relevant training parameters can be specified in the central `config.yaml` file.
+All relevant training parameters, such as LR, batch size, or federated clients & connection parameters can be specified in the central `config.yaml` file.
 
 ### Build
 Both models as well as the workers of the federated learning framework are containerized by their corresponding dockerfiles in `/build`, creating docker images that can be executed on a google compute engine testbed for evaluation.
