@@ -1,0 +1,42 @@
+---
+- name: Copy cloudcore systemd service file
+  copy:
+    src: cloudcore.service
+    dest: /etc/systemd/system
+    owner: root
+    group: root
+
+- name: Run keadm init
+  command:
+    cmd: keadm init --advertise-address="{{ ansible_host }}" --kube-config="/home/{{ ansible_user }}/.kube/config" --kubeedge-version {{ kubeedge_version}}
+    creates: /etc/kubeedge
+
+- name: Create cloudcore.yaml config
+  ansible.builtin.template:
+    src: cloudcore.yaml.j2
+    dest: /etc/kubeedge/config/cloudcore.yaml
+    owner: root
+    group: root
+    mode: '0644'
+  
+- name: Enable systemd service
+  ansible.builtin.systemd:
+    name: cloudcore.service
+    daemon_reload: yes
+    state: started
+    enabled: yes
+
+- name: Pause for 1 minute
+  pause:
+    minutes: 1
+
+- name: Get kubeedge token
+  command: keadm gettoken --kube-config="/home/{{ ansible_user }}/.kube/config"
+  register: token_cmd
+
+- name: set token fact
+  set_fact:
+    keadm_token: "{{ token_cmd.stdout }}"
+
+- debug: 
+    var: keadm_token

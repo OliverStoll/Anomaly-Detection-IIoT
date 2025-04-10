@@ -1,0 +1,13 @@
+plugin: gcp_compute
+projects:
+  - bachelor-kubernetes
+auth_kind: serviceaccount
+hostnames:
+  - name
+groups:
+  k3s-worker: "'-worker-' in name"
+  k3s-master: "'-master' in name"
+  edge-nodes: "'edge' in name"
+service_account_file: ./.google-cred.json
+compose:
+  ansible_host: networkInterfaces[0].accessConfigs[0].natIP

@@ -1,0 +1,98 @@
+apiVersion: edgecore.config.kubeedge.io/v1alpha1
+database:
+  aliasName: default
+  dataSource: /var/lib/kubeedge/edgecore.db
+  driverName: sqlite3
+kind: EdgeCore
+modules:
+  dbTest:
+    enable: false
+  deviceTwin:
+    enable: true
+  edgeHub:
+    enable: true
+    heartbeat: 15
+    httpServer: https://{{ cloudcore_ip }}:10002
+    projectID: e632aba927ea4ac2b575ec1603d56f10
+    quic:
+      enable: false
+      handshakeTimeout: 30
+      readDeadline: 15
+      server: {{ ansible_host }}:10001
+      writeDeadline: 15
+    rotateCertificates: true
+    tlsCaFile: /etc/kubeedge/ca/rootCA.crt
+    tlsCertFile: /etc/kubeedge/certs/server.crt
+    tlsPrivateKeyFile: /etc/kubeedge/certs/server.key
+    token: {{ cloudcore_token }}
+    websocket:
+      enable: true
+      handshakeTimeout: 30
+      readDeadline: 15
+      server: {{ cloudcore_ip }}:10000
+      writeDeadline: 15
+  edgeStream:
+    enable: true
+    handshakeTimeout: 30
+    readDeadline: 15
+    server: {{ cloudcore_ip }}:10004
+    tlsTunnelCAFile: /etc/kubeedge/ca/rootCA.crt
+    tlsTunnelCertFile: /etc/kubeedge/certs/server.crt
+    tlsTunnelPrivateKeyFile: /etc/kubeedge/certs/server.key
+    writeDeadline: 15
+  edged:
+    cgroupDriver: cgroupfs
+    cgroupRoot: ""
+    cgroupsPerQOS: true
+    clusterDNS: "169.254.96.16"
+    clusterDomain: "cluster.local"
+    cniBinDir: /opt/cni/bin
+    cniCacheDirs: /var/lib/cni/cache
+    cniConfDir: /etc/cni/net.d
+    concurrentConsumers: 5
+    devicePluginEnabled: false
+    dockerAddress: unix:///var/run/docker.sock
+    edgedMemoryCapacity: 7852396000
+    enable: true
+    enableMetrics: true
+    gpuPluginEnabled: false
+    hostnameOverride: {{ ansible_hostname }}
+    imageGCHighThreshold: 80
+    imageGCLowThreshold: 40
+    imagePullProgressDeadline: 60
+    maximumDeadContainersPerPod: 1
+    networkPluginMTU: 1500
+    nodeIP: {{ ansible_host }}
+    nodeStatusUpdateFrequency: 10
+    podSandboxImage: kubeedge/pause:3.1
+    registerNode: true
+    registerNodeNamespace: default
+    remoteImageEndpoint: unix:///var/run/dockershim.sock
+    remoteRuntimeEndpoint: unix:///var/run/dockershim.sock
+    runtimeRequestTimeout: 2
+    runtimeType: docker
+    volumeStatsAggPeriod: 60000000000
+  eventBus:
+    enable: true
+    eventBusTLS:
+      enable: false
+      tlsMqttCAFile: /etc/kubeedge/ca/rootCA.crt
+      tlsMqttCertFile: /etc/kubeedge/certs/server.crt
+      tlsMqttPrivateKeyFile: /etc/kubeedge/certs/server.key
+    mqttMode: 2
+    mqttQOS: 0
+    mqttRetain: false
+    mqttServerExternal: tcp://127.0.0.1:1883
+    mqttServerInternal: tcp://127.0.0.1:1884
+    mqttSessionQueueSize: 100
+  metaManager:
+    contextSendGroup: hub
+    contextSendModule: websocket
+    enable: true
+    metaServer:
+      debug: false
+      enable: true
+    podStatusSyncInterval: 60
+    remoteQueryTimeout: 60
+  serviceBus:
+    enable: false

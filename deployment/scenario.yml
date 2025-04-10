@@ -1,0 +1,22 @@
+---
+#
+# Google creds
+#
+gcp_project: bachelor-kubernetes
+gcp_cred_kind: serviceaccount
+gcp_cred_file: ./.google-cred.json
+zone: "europe-west3-c"
+region: "europe-west3"
+
+#
+# Instances to create
+#
+k3s_worker_instances:
+  - hostname: k3s-worker-1
+    machine_type: e2-medium
+
+edge_node_instances:
+  - hostname: edge-1
+    machine_type: e2-medium
+  - hostname: edge-2
+    machine_type: e2-medium

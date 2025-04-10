@@ -8,3 +8,11 @@
 **_predictions.csv
 *_pred.json
 *CLIENT_*.json
+
+### Ansible ###
+*.retry
+
+./fetched/*
+.google-cred.json
+gcp-key
+.venv/

@@ -1,0 +1,19 @@
+---
+- name: Run keadm join
+  command: 
+    cmd: keadm join --cloudcore-ipport={{ cloudcore_ip }}:10000 --token={{ cloudcore_token }}
+    creates: /usr/local/bin/edgecore
+
+- name: Create edgecore.yaml config
+  ansible.builtin.template:
+    src: edgecore.yaml.j2
+    dest: /etc/kubeedge/config/edgecore.yaml
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Restart edgecore service
+  ansible.builtin.systemd:
+    name: edgecore.service
+    state: restarted
+    enabled: yes

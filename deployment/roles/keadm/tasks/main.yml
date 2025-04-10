@@ -1,0 +1,38 @@
+- name: Delete keadm if already present
+  file:
+    path: /usr/local/bin/keadm
+    state: absent
+
+- name: Download keadm binary x64
+  unarchive:
+    src: https://github.com/kubeedge/kubeedge/releases/download/v{{ keadm_version }}/keadm-v{{ keadm_version }}-linux-amd64.tar.gz
+    remote_src: yes
+    dest: /tmp
+    owner: root
+    group: root
+    mode: 0755
+  when: ansible_facts.architecture == "x86_64"
+
+- name: Download keadm binary arm64
+  unarchive:
+    src: https://github.com/kubeedge/kubeedge/releases/download/v{{ keadm_version }}/keadm-v{{ keadm_version }}-linux-arm64.tar.gz
+    remote_src: yes
+    dest: /tmp
+    owner: root
+    group: root
+    mode: 0755
+  when:
+    - ( ansible_facts.architecture is search("arm") and
+        ansible_facts.userspace_bits == "64" ) or
+      ansible_facts.architecture is search("aarch64")
+
+- name: Move keadm binary x64
+  command: mv /tmp/keadm-v{{ keadm_version }}-linux-amd64/keadm/keadm /usr/local/bin/keadm
+  when: ansible_facts.architecture == "x86_64"
+
+- name: Move keadm binary arm64
+  command: mv /tmp/keadm-v{{ keadm_version }}-linux-arm64/keadm/keadm /usr/local/bin/keadm
+  when:
+    - ( ansible_facts.architecture is search("arm") and
+        ansible_facts.userspace_bits == "64" ) or
+      ansible_facts.architecture is search("aarch64")

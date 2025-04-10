@@ -1,0 +1,201 @@
+- name: Bootstrap experiment
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - ../scenario.yml
+  tasks:
+    - name: Create experiment network
+      gcp_compute_network:
+          name: 'kubeedge-net'
+          auto_create_subnetworks: 'true'
+          project: "{{ gcp_project }}"
+          auth_kind: "{{ gcp_cred_kind }}"
+          service_account_file: "{{ gcp_cred_file }}"
+          scopes:
+            - https://www.googleapis.com/auth/compute
+          state: present
+      register: network
+
+    - name: Allow internal traffic
+      gcp_compute_firewall:
+          state: present
+          name: kubeedge-internal
+          network: "{{ network }}"
+          project: "{{ gcp_project }}"
+          auth_kind: "{{ gcp_cred_kind }}"
+          service_account_file: "{{ gcp_cred_file }}"
+          source_ranges:
+            - "10.128.0.0/9"
+          allowed:
+            - ip_protocol: tcp
+              ports:
+                - "0-65535"
+            - ip_protocol: udp
+              ports:
+                - "0-65535"
+
+    - name: Open Ports on Firewall
+      gcp_compute_firewall:
+          state: present
+          name: kubeedge-rules
+          network: "{{ network }}"
+          project: "{{ gcp_project }}"
+          auth_kind: "{{ gcp_cred_kind }}"
+          service_account_file: "{{ gcp_cred_file }}"
+          source_ranges:
+            - "0.0.0.0/0"
+          allowed:
+            - ip_protocol: tcp
+              ports:
+                - "0-65535"
+                #- "22"
+                #- "6443"
+                #- "10000"
+                #- "10002"
+                #- "10004"
+                #- "10005"
+                #- "10003"
+
+    - name: Create k3s master instance 
+      include_tasks: _create_instance.yml
+      vars:
+          ansible_group: k3s-master
+      loop:
+        - hostname: k3s-master
+          machine_type: e2-medium
+
+    - name: Create k3s worker instances 
+      include_tasks: _create_instance.yml
+      vars:
+          ansible_group: k3s-worker
+      loop: "{{ k3s_worker_instances }}"
+
+    - name: Create edge node instances 
+      include_tasks: _create_instance.yml
+      vars:
+          ansible_group: edge-nodes
+      loop: "{{ edge_node_instances }}"
+
+
+#
+# Install k3s
+#
+- name: Download k3s
+  hosts: all
+  become: yes
+  roles:
+    - download-k3s
+  vars:
+    k3s_version: v1.21.6+k3s1
+
+- name: Install k3s-master
+  hosts: k3s-master
+  become: yes
+  pre_tasks:
+    - name: apt update
+      apt:
+        update_cache: yes
+  roles:
+    - geerlingguy.pip
+    - geerlingguy.docker
+    - k3s-master
+  vars:
+    k3s_version: v1.21.6+k3s1
+    systemd_dir: /etc/systemd/system
+    master_ip: "{{ ansible_host }}"
+    extra_server_args: "--tls-san {{ ansible_host }} --docker"
+
+- name: Install k3s-worker nodes
+  hosts: k3s-worker
+  become: yes
+  pre_tasks:
+    - name: apt update
+      apt:
+        update_cache: yes
+  roles:
+    - geerlingguy.pip
+    - geerlingguy.docker
+    - k3s-node
+  vars:
+    k3s_version: v1.21.6+k3s1
+    systemd_dir: /etc/systemd/system
+    master_ip: "{{ hostvars['k3s-master']['ansible_default_ipv4']['address'] }}"
+    extra_agent_args: "--docker"
+    token: "{{ hostvars['k3s-master']['token'] }}"
+
+- name: Install docker on edge nodes
+  hosts: edge-nodes
+  become: yes
+  pre_tasks:
+    - name: apt update
+      apt:
+        update_cache: yes
+  roles:
+    - geerlingguy.pip
+    - geerlingguy.docker
+
+#
+# Install keadm
+#
+- name: Download keadm
+  hosts: all
+  become: yes
+  roles:
+    - keadm
+  vars:
+    keadm_version: 1.8.1
+
+- name: Run keadm --init on k8s master node
+  hosts: k3s-master
+  become: yes
+  roles:
+    - cloudcore
+  vars: 
+    kubeedge_version: 1.8.1
+
+- name: Run keadm --join on edge nodes
+  hosts: edge_nodes
+  become: yes
+  vars:
+    cloudcore_ip: "{{ hostvars['k3s-master']['ansible_host'] }}"
+    cloudcore_token: "{{ hostvars['k3s-master']['keadm_token'] }}"
+  roles:
+    - edgecore
+
+- name: Install edgemesh
+  hosts: localhost
+  pre_tasks:
+    - name: Wait for 30s before installing helm charts
+      pause:
+        seconds: 30
+  tasks:
+    - name: Deploy edgemesh helm chart
+      community.kubernetes.helm:
+        kubeconfig: ./fetched/config
+        name: edgemesh
+        chart_ref: https://raw.githubusercontent.com/kubeedge/edgemesh/main/build/helm/edgemesh.tgz
+        release_namespace: default
+        values:
+          server:
+            nodeName: k3s-master
+            publicIP: "{{ hostvars['k3s-master']['ansible_host'] }}"
+
+- name: Restart cloudcore
+  hosts: k3s-master
+  become: yes
+  tasks:
+    - name: Restart cloudcoud service
+      ansible.builtin.systemd:
+        name: cloudcore.service
+        state: restarted
+        enabled: yes
+
+- name: Restart edgecore
+  hosts: edge_nodes
+  become: yes
+  tasks:
+    - name: Restart edgecore service
+      ansible.builtin.systemd:
+        name: edgecore.service
+        state: restarted
+        enabled: yes
