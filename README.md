@@ -57,7 +57,8 @@ Our research showed, that:
 - Dockerfiles for all components are located in `/docker`
 - Supports local execution and deployment to cloud environments (e.g., Google Cloud Platform)
 - Persistent state and model transfer mechanisms are built in for simulated or real federated setups
-- For information on deploying the KubeEdge testbed in GCP using Ansible, please refer to the [Deployment README](deployment/README.md).
+- Supports local execution and deployment to cloud environments (e.g., Google Cloud Platform) via ansible in `deployment/`
+- For detailed information on deploying the KubeEdge testbed in GCP using Ansible, please refer to the [Deployment README](deployment/README.md).
 
 ---
 
