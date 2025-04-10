@@ -54,9 +54,9 @@ Our research showed, that:
 
 ### Build & Deployment
 
-- Dockerfiles for all components are located in `/build`
+- Dockerfiles for all components are located in `build/`
 - Persistent state and model transfer mechanisms are built in for simulated or real federated setups
-- Supports local execution and deployment to cloud environments (e.g., Google Cloud Platform) via ansible in `\deployment`
+- Supports local execution and deployment to cloud environments (e.g., Google Cloud Platform) via ansible in `deployment/`
 - For detailed information on deploying the KubeEdge testbed in GCP using Ansible, please refer to the [Deployment README](deployment/README.md).
 
 ---
