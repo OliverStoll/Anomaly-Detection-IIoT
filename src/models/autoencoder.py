@@ -6,7 +6,7 @@ from keras.layers import Input, Dense, Flatten, Reshape, LSTM, TimeDistributed, 
 from keras.models import Model
 from keras.regularizers import l2
 
-from util.config import c, client_config
+from config.config import c, client_config
 
 
 def lstm_autoencoder_model(hp=None):

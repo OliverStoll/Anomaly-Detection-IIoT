@@ -1,6 +1,6 @@
 # Federated Learning for Autoencoder-based Anomaly Detection in the Industrial IoT
 
-This project investigates the use of autoencoders and federated learning for condition monitoring in Industrial IoT (IIoT) environments, with a focus on resource-constrained edge devices and data privacy. It was developed as part of a Bachelor thesis and published at IEEE BigData 2022.
+This project investigates the use of autoencoders and federated learning for condition monitoring in Industrial IoT (IIoT) environments, with a focus on resource-constrained edge devices and data privacy. It was developed as part of a ![Bachelor thesis](Thesis.pdf) and published at IEEE BigData 2022.
 
 ## Architecture Overview
 
@@ -54,7 +54,7 @@ Our research showed, that:
 
 ### Build & Deployment
 
-- Dockerfiles for all components are located in `/build`
+- Dockerfiles for all components are located in `/docker`
 - Supports local execution and deployment to cloud environments (e.g., Google Cloud Platform)
 - Persistent state and model transfer mechanisms are built in for simulated or real federated setups
 - For information on deploying the KubeEdge testbed in GCP using Ansible, please refer to the [Deployment README](deployment/README.md).

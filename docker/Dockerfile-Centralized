@@ -4,13 +4,11 @@ ENV PYTHONUNBUFFERED=1
 ENV PATH_APP /app
 WORKDIR $PATH_APP
 
-
 ENV DOCKER_MODE True
 RUN echo DATASET_PATH
-
 
 COPY . .
 
 RUN pip install --no-cache-dir -r requirements.txt
 
-CMD [ "python", "./training.py" ]
+CMD [ "python", "./src/training/trainer.py" ]

@@ -149,7 +149,7 @@ def calculate_auc(trainer, mse, is_until_failure, curve_type="roc"):
         x_vals = fps
         y_vals = tps
 
-    else:  # TODO
+    else:
         x_vals = precisions
         y_vals = recalls
         auc = np.trapz(x=precisions, y=recalls)

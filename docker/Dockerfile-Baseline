@@ -11,13 +11,13 @@ ENV PYTHONUNBUFFERED=1
 # RUN echo DATASET_PATH
 
 # copy only the baseline folder and the requirements file
-COPY ./baseline .
+COPY ./src/training/baseline .
 COPY ./data ./data
 COPY ./requirements.txt ./requirements.txt
-COPY ./configs/config.yaml ./config.yaml
+COPY ./config/config.yaml ./config.yaml
 
 
 RUN pip install --no-cache-dir -r requirements.txt
 
-CMD [ "python", "./baseline_old.py" ]
+CMD [ "python", "./baseline.py" ]
 

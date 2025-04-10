@@ -12,4 +12,4 @@ COPY . .
 
 RUN pip install --no-cache-dir -r requirements.txt
 
-CMD [ "python", "./worker_aggregation.py" ]
+CMD [ "python", "./src/federated_learning/worker_training.py" ]

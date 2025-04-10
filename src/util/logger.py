@@ -6,8 +6,7 @@ from datetime import datetime
 import psutil
 
 
-def plot_tuning_logs(path="hyper_tuning/tuning_log.txt"):
-
+def plot_tuning_logs(path: str ="hyper_tuning/tuning_log.txt"):
     full_text = open(path, "r").read()
     trial_list = full_text.split("Search: Running Trial")
     all_hyperpars = []
@@ -173,7 +172,6 @@ class TFLogReader:
 
 
 if __name__ == "__main__":
-
     # log_ressource_usage()
     # metrics = TFLogReader("logs/centralized/bearing_experiment-2/bearing-1.txt").metrics['lstm']['time_per_step']
     get_ressource_usage()

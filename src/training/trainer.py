@@ -5,24 +5,15 @@ import json
 import keras_tuner as kt
 from keras.callbacks import TensorBoard
 from sklearn.preprocessing import StandardScaler
-# from datetime import datetime
-# import pandas as pd
-# import numpy as np
-# import matplotlib.pyplot as plt
-# import yaml
-# from sklearn.metrics import roc_curve, auc
-# import sklearn.metrics as skm
-# from tensorboard.plugins.hparams import api as hp
 
-from models import lstm_autoencoder_model, fft_autoencoder_model
+from autoencoder import lstm_autoencoder_model, fft_autoencoder_model
 from util.ml_calculations import *
-from util.ml_callbacks import scheduler  # , tensor_callback
+from util.lr_scheduler import scheduler
 from util.config import c, config, client_config
 
 
 class Training:
     def __init__(self, experiment_name, load_columns, train_columns, full_data_path=None, model_type="centralized"):
-        # config values
         self.experiment_name = experiment_name
         self.load_columns = load_columns
         self.train_columns = train_columns
@@ -34,9 +25,6 @@ class Training:
         self.verbose = 1
         # data
         self.data_3d, self.data_train_3d = self._load_and_normalize_data(path=full_data_path)
-        # self.fft_3d = fft_from_data(self.data_3d)
-        # self.fft_train_3d = fft_from_data(self.data_train_3d)
-        # self.fft_2d = self.fft_3d.reshape((-1, self.fft_3d.shape[2]))
         # models
         self.model_lstm = lstm_autoencoder_model()
         self.model_fft = fft_autoencoder_model()
@@ -49,13 +37,6 @@ class Training:
         self.results = {'lstm': {}, 'fft': {}}
         self.logs_path = f"logs/{self.experiment_name}/centralized.json" if model_type == "centralized" \
             else f"logs/{self.experiment_name}/federated_{os.getenv('CLIENT_NAME')}.json"
-
-        # print all attributes of the class
-        print(os.getenv('CLIENT_NAME'))
-        for attr, value in self.__dict__.items():
-            print(f"{attr}: {value}") if ('2d' not in attr and '3d' not in attr) else print(f"{attr}: {value.shape}")
-
-        print("\n")
 
     def _load_and_normalize_data(self, path=None):
         """ Prepare the data for training and evaluation, by normalizing and splitting the data """
@@ -198,16 +179,12 @@ class Training:
     def calculate_reconstruction_error(self):
         """ Calculate the anomaly score for the data. """
 
-        # calculate the anomaly scores
         print("CALCULATING RE-SCORE")
         data_lstm_3d = self.data_3d[::2, :, :]  # accounting the overlap
         data_lstm_2d = data_lstm_3d.reshape((-1, data_lstm_3d.shape[2]))
         self.pred_2d_lstm = self.model_lstm.predict(data_lstm_3d, verbose=1).reshape((-1, data_lstm_3d.shape[2]))
         self.mses = {'lstm': ((data_lstm_2d - self.pred_2d_lstm) ** 2).mean(axis=1)}
-        # calculate the mean of 1000 mses
         self.mses['lstm'] = self.mses['lstm'].reshape(-1, 1000).mean(axis=1)
-
-        # save results
         self.results['lstm']['mse'] = self.mses['lstm'].tolist()
 
     def save_results(self, save_path=None):

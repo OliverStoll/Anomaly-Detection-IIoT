@@ -85,7 +85,6 @@ class TrainingWorker:
 
 
 if __name__ == '__main__':
-
     # EVALUATE TRAINING AS DOCKER IMAGE
     for path, subdirs, files in os.walk("./data"):
         for name in files:

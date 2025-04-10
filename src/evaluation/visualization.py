@@ -12,13 +12,12 @@ from matplotlib.lines import Line2D
 import matplotlib.gridspec as gridspec
 from sklearn.metrics import mean_squared_error
 
-from util.config import c
+from config.config import config
 
 # plot big images
 mpl.rcParams['agg.path.chunksize'] = 10000
 
 anomal_bearings = {'bearing_experiment-1': [2, 3], 'bearing_experiment-2': [0], 'bearing_experiment-3': [3]}
-# 136
 resource_dict = {'runtime': [2413, 6088, 3262], 'cpu_capped_epoch_time': [191.4, 605.2, 485.2], 'cpu': [0.495746727,	0.621289861, 0.92958637], 'bullshit': []}
 resource_dict_2 = {'cpu_capped_runtime': [1196.2, 3782.4, 3032.3], 'memory_mean': [0.695, 0.909, 8.340], 'memory_max': [0.769, 0.929, 11.241]}
 mem_resources = [[0.695, 0.909, 8.340], [0.769, 0.929, 11.241]]
@@ -51,15 +50,15 @@ class Plotter:
         self.data_full = pd.read_csv(f"data/{experiment_name}/full.csv")
         self.columns = columns if columns is not None else [0, 1, 2, 3]
         self.rolling_min = rolling_min
-
-        # load the mse and calculate the anomalies
         self._load_mse_and_calc_anoms(rolling_min=rolling_min)
 
         print(f"Thresholds: {self.threshold}")
         print(f"Anomaly start: {self.anomalies_period}")
 
     def _load_mse_and_calc_anoms(self, rolling_min):
-        # group the results by the measurement period and calculate the mean of the reconstruction error using numpy
+        """
+        group the results by the measurement period and calculate the mean of the reconstruction error using numpy
+        """
 
         if 'baseline' in self.models:
             mse = np.array(self.results['baseline']['lstm']['mse'])
