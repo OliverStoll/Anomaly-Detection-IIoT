@@ -46,7 +46,7 @@ ansible-galaxy install -r requirements.yml
 
 2) Run the playbook:
 ```
-export ANSIBLE_CONFIG=deployment/config/config.cfg
+export ANSIBLE_CONFIG=deployment/ansible.cfg
 
 ansible-playbook \
   -i deployment/inventory/inventory.gcp.yml \
