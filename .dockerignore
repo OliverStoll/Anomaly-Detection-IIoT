@@ -3,15 +3,15 @@
 archive/
 plots/
 model/
+deployment/
 hyper_tuning/
 logs/
 .idea
 .git
 # data/
 __pycache__
-  **/*Old.csv
+**/*Old.csv
 
 
 
-# BASELINE -> auskommentieren !!!!!!!!!
-  **/*full.csv
+**/*full.csv
