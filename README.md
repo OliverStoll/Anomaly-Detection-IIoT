@@ -1,31 +1,39 @@
-# 🧾 Federated Learning for Autoencoder-based Anomaly Detection in the Industrial IoT
+# Federated Learning for Autoencoder-based Anomaly Detection in the Industrial IoT
 
-This repository contains the implementation of a federated learning approach to autoencoder-based condition monitoring, 
-focused on an industrial application in the resource-limited domain of the Internet of Things.
+This project investigates the use of autoencoders and federated learning for condition monitoring in Industrial IoT (IIoT) environments, with a focus on resource-constrained edge devices and data privacy. It was developed as part of a Bachelor thesis and published at IEEE BigData 2022.
 
-As industrial IoT devices are often resource-limited, they are neither able to perform computational intense model training 
-nor to store large amounts of data. 
+## Architecture Overview
 
-## 🔧 Architecture
+The project follows a stepwise approach:
 
-This work takes a stepwise approach to this problem:
-1. Optimizing the performance of an autoencoder-based anomaly detection model under the given constraints.
-2. This model was then utilized in a federated learning framework to improve generalizability, while at the same time guaranteeing data privacy for each individual device, by not sharing actual training data but only model weights.
+1. **Autoencoder Optimization**  
+   Development and tuning of a lightweight autoencoder-based anomaly detection model tailored to limited compute and memory environments.
+
+2. **Federated Learning Integration**  
+   Deployment of the model in a federated learning framework to ensure data privacy by exchanging model weights instead of raw data, thereby maintaining local data ownership while improving global generalizability.
+
 
  
 Federated Learning IIoT Use Case Scenario                 | Federated Learning Training Cycle                                             
 ----------------------------------------------------------|-------------------------------------------------------------------------------
 ![Federated Learning](plots/ReadMe/federated-factory.png) | ![Federated Learning Architecture](plots/ReadMe/federated-training-cycle.png) 
 
-## 📊 Evaluation & Results
+---
 
-To evaluate the success of this approach, we conducted a case study on a real-world industrial application of 
-anomaly detection in rotating machines, which are commonly found in manufacturing.
+## Evaluation & Results
 
-Here, we compared the performance of the (resource-efficient) federated learning approach to a (resource-efficient) centralized approach, as well as a baseline model that was resource-unconstrained.
+To evaluate the success of this approach, we conducted a case study on a real-world industrial application of anomaly detection in rotating machines, which are commonly found in manufacturing.
+
+Here, the performances and resource demands of three configurations were compared:
+
+- A **baseline** model: centralized and resource-unconstrained
+- A **centralized, resource-efficient** model: trained on pooled data  
+- A **federated version** of the resource-efficient model: multiple instances trained locally on disjoint data subsets, exchanging only model weights
+
+### Key Findings
 
 Our research showed, that:
-1. The proposed resource-efficient model was able to achieve similar anomaly detection performance to the baseline architecture.
+1. The proposed resource-efficient centralized model was able to achieve similar anomaly detection performance to the baseline architecture.
 2. Even when used in a federated learning framework, only able to share model weights instead of data, instances of the resource-efficient model were still able to achive equal certainty of defect predictions.
 3. At the same time, this approach succeeded in strongly improving resource consumption and guaranteeing data privacy, as no trainings data was ever required to leave individual devices.
 
@@ -34,18 +42,28 @@ Our research showed, that:
 
 
 
-## 🗂️ Project Structure & How to Use
+## Project Structure & Usage
 
-### Models & Training
-The resource-efficient autoencoder model and relevant functions for training and data preparation (i.e. normalization, batch-sizing..) are implemented in `src/training.py`.
-The baseline model can be executed using `src/baseline.py`.
+### Training & Models
 
-Here, either the resource-optimized model or the comparison baseline can be individually trained and evaluated.
-Finally, the federated learning framework is implemented using two different worker scripts `worker_training.py` and `worker_aggregation.py`.
+- `src/training.py`: Training pipeline for the resource-efficient autoencoder  
+- `src/baseline.py`: Baseline (resource-unconstrained) model  
+- `src/worker_training.py`, `src/worker_aggregation.py`: Federated training and model aggregation logic  
+- `config.yaml`: Central configuration for training parameters (e.g., LR, batch size, number of clients)
 
-All relevant training parameters, such as LR, batch size, or federated clients & connection parameters can be specified in the central `config.yaml` file.
 
-### Build
-Both models as well as the workers of the federated learning framework are containerized by their corresponding dockerfiles in `/build`, creating docker images that can be executed on a google compute engine testbed for evaluation.
-To run the federated learning approach, the docker images need to be built which can then be either locally executed or deployed to a cloud solution such as GCP.
+### Build & Deployment
+
+- Dockerfiles for all components are located in `/build`
+- Supports local execution and deployment to cloud environments (e.g., Google Cloud Platform)
+- Persistent state and model transfer mechanisms are built in for simulated or real federated setups
+
+---
+
+## License
+This project is licensed under the MIT License – see the [LICENSE](LICENSE) file for details.
+
+## Contributing
+Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
 
