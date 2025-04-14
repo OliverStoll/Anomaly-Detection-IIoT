@@ -46,17 +46,16 @@ Our research showed, that:
 
 ### Training & Models
 
-- `src/models/autoencoder.py`: Resource-efficient condition monitoring model for deployment at the edge
-- `src/training/trainer.py`: Training pipeline for the resource-efficient autoencoder  
-- `src/training/baseline.py`: Baseline (resource-unconstrained) condition monitoring model for comparison
-- `src/federated_learning`: Federated training, communication between models and model aggregation logic
-- `src/data`: Entire data pipeline for data loading, cleaning and transformation 
+- `src/models/`: Resource-efficient condition monitoring model for deployment at the edge
+- `src/training/`: Training pipeline for the resource-efficient autoencoder, as well as baseline (resource-unconstrained) condition monitoring model for comparison
+- `src/federated_learning/`: Federated training, communication between models and model aggregation logic
+- `src/data/`: Entire data pipeline for data loading, cleaning and transformation 
 - `config.yaml`: Central configuration for training parameters (e.g., LR, batch size, number of clients)
 
 
 ### Build & Deployment
 
-- Dockerfiles for all components are located in `/docker`
+- Dockerfiles for all components are located in `docker/`
 - Persistent state and model transfer mechanisms are built in for simulated or real federated setups
 - Supports local execution and deployment to cloud environments (e.g., Google Cloud Platform) via ansible in `deployment/`
 - For detailed information on deploying the KubeEdge testbed in GCP using Ansible, please refer to the [Deployment README](deployment/README.md).
