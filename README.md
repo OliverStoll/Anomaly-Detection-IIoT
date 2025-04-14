@@ -46,9 +46,11 @@ Our research showed, that:
 
 ### Training & Models
 
-- `src/training.py`: Training pipeline for the resource-efficient autoencoder  
-- `src/baseline.py`: Baseline (resource-unconstrained) model  
-- `src/worker_training.py`, `src/worker_aggregation.py`: Federated training and model aggregation logic  
+- `src/models/autoencoder.py`: Resource-efficient condition monitoring model for deployment at the edge
+- `src/training/trainer.py`: Training pipeline for the resource-efficient autoencoder  
+- `src/training/baseline.py`: Baseline (resource-unconstrained) condition monitoring model for comparison
+- `src/federated_learning`: Federated training, communication between models and model aggregation logic
+- `src/data`: Entire data pipeline for data loading, cleaning and transformation 
 - `config.yaml`: Central configuration for training parameters (e.g., LR, batch size, number of clients)
 
 
