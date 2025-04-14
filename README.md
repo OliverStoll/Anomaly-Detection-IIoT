@@ -1,6 +1,6 @@
 # Federated Learning for Autoencoder-based Anomaly Detection in the Industrial IoT
 
-This project investigates the use of autoencoders and federated learning for condition monitoring in Industrial IoT (IIoT) environments, with a focus on resource-constrained edge devices and data privacy. It was developed as part of a [Bachelor thesis](./Thesis.pdf) and published at [IEEE BigData 2022](https://ieeexplore.ieee.org/document/10020836).
+This project investigates the use of autoencoders and federated learning for condition monitoring in Industrial IoT (IIoT) environments, with a focus on resource-constrained edge devices and data privacy. It was developed as part of my [Bachelor thesis](./Thesis.pdf) and published at [IEEE BigData 2022](https://ieeexplore.ieee.org/document/10020836).
 
 ## Architecture Overview
 
