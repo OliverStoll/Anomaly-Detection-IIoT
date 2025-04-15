@@ -45,7 +45,7 @@ Our research showed, that:
 
 ## 🧱 Project Structure & Usage
 
-####🧪  Training & Models
+#### 🧪  Training & Models
 
 - `src/models/`: Resource-efficient condition monitoring model for deployment at the edge
 - `src/training/`: Training pipeline for the resource-efficient autoencoder, as well as baseline (resource-unconstrained) condition monitoring model for comparison
